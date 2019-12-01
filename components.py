@@ -4,8 +4,11 @@ class Operation:
     """
     definition of an operation
     """
-    def __init__(self, opType):
+    def __init__(self, opType, obj, opId, val=None):
         self.opType = opType
+        self.obj = obj
+        self.val = val
+        self.opId = opId
 
     
 class Transaction:
