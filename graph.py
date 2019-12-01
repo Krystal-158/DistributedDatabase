@@ -4,11 +4,16 @@ Each vertex in the graph represents a transaction.
 If there's an edge pointing from T1 to T2, then T2 is 
 in T1's adjacent list while T1 isn't in T2's.
 """
+from queue import Queue
 
 class Vertex:
     def __init__(self, vId):
         self.vId = vId
+        self.visited = 0 # flag used in cycle detection
         self.adj = set()
+
+    def __repr__(self):
+        return '{}'.format(self.vId)
 
     def addAdj(self, v):
         """
@@ -52,9 +57,21 @@ class Graph:
         """
         v = self.getVertex(vId)
         if v:
-            self.vertices.remove(v)
+            self.vertices.remove(v) # remove it from the graph
+            # remove the vertex from all its neighbours' adjacent list
             for u in self.vertices:
-                u.deleteAdj(v)                
+                u.deleteAdj(v) 
+            # delete the vertex
+            del v               
+
+    def addEdge(self, vId, uId):
+        """
+        Add vertex (id = adjId) to vertex (id = vId)'s 
+        adjacent list
+        """
+        v = self.getVertex(vId)
+        u = self.getVertex(uId)
+        v.addAdj(u)
 
     def detectCycle(self):
         """
@@ -62,10 +79,53 @@ class Graph:
         If so, return a list of vertices in the cycle
         Otherwise return an empty list
         """
+        cycle = list() # list of all vertices in any possible cycles
+        stack = list()
+        for v in self.vertices:
+            v.visited = 0
+        for v in self.vertices:
+            if v.visited == 0:
+                self.dfs(v, stack, cycle)
+        return cycle
+
+    def dfs(self, v, stack, cycle):
+        """
+        Depth-first search a vertex
+        Return all vertices in a cycle
+        """
+        v.visited = 1
+        stack.append(v)
+        for u in v.adj:
+            if u not in stack and u.visited == 0:
+                self.dfs(u, stack, cycle)
+            else:
+                index = stack.index(u)
+                for w in stack[index:]:
+                    if w not in cycle:
+                        cycle.append(w)
+        stack.pop(-1)
 
 
-    def tpsort(self):
-        """
-        Topological sort
-        """
-        
+# testing
+if __name__ == '__main__':
+    graph = Graph()
+    graph.insertVertex(0)
+    graph.insertVertex(1)
+    graph.insertVertex(2)
+    graph.insertVertex(3)
+    graph.insertVertex(4)
+    graph.insertVertex(5)
+    graph.insertVertex(6)
+    graph.insertVertex(7)
+    graph.addEdge(0, 1)
+    graph.addEdge(1, 2)
+    graph.addEdge(2, 1)
+    graph.addEdge(2, 3)
+    graph.addEdge(2, 5)
+    graph.addEdge(3, 4)
+    graph.addEdge(4, 1)
+    graph.addEdge(5, 6)
+    graph.addEdge(6, 7)
+    graph.addEdge(7, 5)
+    result = graph.detectCycle()
+    print(result)
