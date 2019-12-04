@@ -258,11 +258,13 @@ class Operation:
     args:
         opType: read, write
     """
-    def __init__(self, opType, obj, opId, val=None):
+    def __init__(self, txId, opId, opType, varId, val=None):
         self.opType = opType
-        self.obj = obj
+        self.varId = varId
         self.val = val
         self.opId = opId
+        self.txId = txId
+        self.exec = False
 
 
   
@@ -276,6 +278,7 @@ class Transaction:
     def __init__(self, txId, txType = ""):
         self.txId = txId
         self.txType = txType
+        self.abort = False
         self.ops = list()
 
     def addOp(self, op):
