@@ -10,19 +10,16 @@ class Site:
         self.status = "avaliable"  # site_status: available, fail
         self.variable_list = dict()
         self.lock_table = dict()   # a dictionary of list of locks
-        self.lock_backup_table = dict() # a dictionary of next turn list of locks
 
         # initializes the vairables in this site
         for i in range(1, 21):
             if i%2 == 0:
                 self.variable_list[i] = Variable(i, 10*i, 10*i)
                 self.lock_table[i] = list()
-                self.lock_backup_table[i] = list()
             elif i%10 + 1 == self.site_id:
                 self.variable_list[i] = Variable(i, 10*i, 10*i)
                 self.lock_table[i] = list()
-                self.lock_backup_table[i] = list()
-                
+
     def ApplyLock(self, lock):
         """Apply a lock on the variable.
         1. check if there is write lock on variable. if so, lock apply fails.
@@ -36,30 +33,33 @@ class Site:
         
         vid = lock.variable_id
         if self.variable_list[vid] == "free":
-            self.variable_list[vid].lock_status = lock.type
+            self.variable_list[vid].lock_status = lock.lock_type
             self.lock_table[vid].append(lock)
             return True
         elif self.variable_list[vid].lock_status == "write":
-            print ("Cannot lock variable because variable {} on site {} has write lock on! ".format(lock.variable, self.site_id))
-            self.update_lock_backup_table(lock)
-            return False
+            if lock.lock_type == "write" and self.lock_table[vid][0].transaction_id == lock.transaction_id:
+                print("Lock existed.")
+                return True
+            else:
+                print ("Cannot lock variable because variable {} on site {} has write lock on! ".format(lock.variable, self.site_id))
+                return False
         elif self.variable_list[vid].lock_status == "read":
             if lock.lock_type == "write":
+                if len(self.lock_table[vid]) == 1 and self.lock_table[vid][0].transaction_id == lock.transaction_id:
+                    self.variable_list[vid].lock_status = lock.lock_type
+                    self.lock_table[vid].clear()
+                    self.lock_table[vid].append(lock)
+                    print("Upgrade read lock to write lock.")
+                    return True
                 print ("Cannot apply WRITE lock because variable {} on site {} has read lock on! ".format(lock.variable, self.site_id))
-                self.update_lock_backup_table(lock)
                 return False
             else:
                 for l in self.lock_table[vid]:
-                    if (l.transaction_id == lock.transaction_id):
+                    if l.transaction_id == lock.transaction_id:
+                        print("Lock existed.")
                         return True
                 self.lock_table[vid].append(lock)
                 return True
-
-    def update_lock_backup_table(self, lock):
-        temp_lock = self.lock_backup_table[vid][0]
-
-        if temp_lock.type == "read" or (temp_lock.type == "write" 
-            and temp_lock.transaction_id != lock.transaction_id):
 
     def ReleaseLock(self, lock):
         """Release lock on variable.
@@ -95,7 +95,7 @@ class Site:
             v.value = v.commited_value
             v.is_recovered = True
     
-    def dump(self, variable_id, is_commited = False):
+    def read(self, variable_id, is_commited = False):
         """return the value of the requested variable.
         args:
             is_commited: whether you want the lastest commited value.
@@ -118,6 +118,73 @@ class Site:
                 return True, self.variable_list[i].commited_value
             else:
                 return True, self.variable_list[i].value
+
+
+    def execute(self, operation, transaction):
+        """execute operatin
+        """
+        v_id = operation.obj
+        o_type = operation.opType
+        t_type = transaction.txType
+        if self.status == "fail":
+            print("Failed: Site {} is a failed site".format(self.site_id))
+            return False, 0
+        if t_type == "RO":
+            if o_type == "read":
+                if self.variable_list[v_id].is_recovered == True and v_id%2 == 0:
+                # cannot read duplicated(even-index) variables
+                    print("Failed: read duplicated variable {} on recovery site {}".format(v_id, self.site_id))
+                    return False
+                print("Done. T{} read last COMMITED variable {} on site{} returns {}".format(
+                    transaction.txID, v_id, self.site_id, self.variable_list[v_id].commited_value))
+                return True
+            else:
+                print("Failed: write operation exists in RO transaction.")
+                return False
+        elif t_type == "RW":
+            if self.variable_list[v_id].is_recovered == True:
+                if o_type == "read":
+                # cannot read duplicated(even-index) variables
+                    if v_id%2 == 0:
+                        print("Failed. read duplicated variable {} on recovery site {}".format(v_id, self.site_id))
+                        return False
+                    # ################ something could goes wrong
+
+                    print("T{} read variable {} on site{} returns {}".format(
+                    transaction.txID, v_id, self.site_id, self.variable_list[v_id].value))
+                    return True
+
+                elif o_type == "write":
+                # set is_recovered to False
+                    self.variable_list[v_id].set_value(operation.val)
+                    self.variable_list[v_id].is_recovered == False
+                    print("commit done. T{} write value {} to RECOVERED variable {} on site{}.".format(
+                    transaction.txID, self.variable_list[v_id].commited_value, v_id, self.site_id))
+                    return True
+                else:
+                    print("commit failed: wrong operation type: {}".format(o_type))
+                    return False
+
+            elif self.status == "available":
+                if o_type == "read":
+                    print("commit done. T{} read variable {} on site{} returns {}".format(
+                    transaction.txID, v_id, self.site_id, self.variable_list[v_id].value))
+                    return True
+                elif o_type == "write":
+                    self.variable_list[v_id].set_value(operation.val)
+                    print("commit done. T{} write value {} to variable {} on site{}".format(
+                    transaction.txID, self.variable_list[v_id].commited_value, v_id, self.site_id))
+                    return True
+                else:
+                    print("commit failed: wrong operation type: {}".format(o_type))
+                    return False
+
+            else:
+                print("commit failed: wrong site status: {}".format(self.site_status))
+                return False
+        else:
+            print("Wrong transaction type: {}".format(t_type))
+            return False
 
 
     def commit(self, operation, transaction):
@@ -159,7 +226,7 @@ class Site:
 
                 elif o_type == "write":
                 # set is_recovered to False
-                    self.variable_list[v_id].commit(operation.val)
+                    self.variable_list[v_id].commit()
                     self.variable_list[v_id].is_recovered == False
                     print("commit done. T{} write value {} to RECOVERED variable {} on site{}.".format(
                     transaction.txID, self.variable_list[v_id].commited_value, v_id, self.site_id))
@@ -174,7 +241,7 @@ class Site:
                     transaction.txID, v_id, self.site_id, self.variable_list[v_id].value))
                     return True
                 elif o_type == "write":
-                    self.variable_list[v_id].commit(operation.val)
+                    self.variable_list[v_id].commit()
                     print("commit done. T{} write value {} to variable {} on site{}".format(
                     transaction.txID, self.variable_list[v_id].commited_value, v_id, self.site_id))
                     return True
@@ -205,9 +272,7 @@ class Variable:
     def set_value(self, value):
         self.value = value
 
-    def commit(self, value=None)
-        if value:
-            self.value = value
+    def commit(self)
         self.commited_value = self.value
         
 class Lock:
