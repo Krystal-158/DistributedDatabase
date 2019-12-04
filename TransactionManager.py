@@ -112,7 +112,14 @@ class TransactionManager:
                         commit = False
         # release all the locks
         for op in tx.ops:
-            
+            lock = Lock(txId, varId, op.opType)
+            if op.varId % 2 == 0:
+                for siteId in range(1, 11):
+                    self.sites[siteId].ReleaseLock(lock)
+            else:
+                siteId = op.varId % 10 + 1
+                self.sites[siteId].ReleaseLock(lock)
+            self.reapplyLock(lock)                
         # delete the tx from self.transactions
         del self.transactions[txId]
         # delete the tx from self.txSite
@@ -120,6 +127,18 @@ class TransactionManager:
         # delete the tx from self.graph
         self.graph.deleteVertex(txId)
         return commit
+    
+    def reapplyLock(self, lock):
+        """
+        Apply a recently-released lock to the first operation needed it in the waitlist
+        then execute the operation, if there's any
+        """
+        for op in self.waitlist:
+            if op.varId == lock.variable_id:
+                if op.varId % 2 == 0:
+
+                else:
+
 
     def readOp(self, txId, opId, varId):
         """Read the value of a variable

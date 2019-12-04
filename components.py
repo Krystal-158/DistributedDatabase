@@ -275,15 +275,15 @@ class Variable:
     def set_value(self, value):
         self.value = value
 
-    def commit(self)
+    def commit(self):
         self.commited_value = self.value
         
 class Lock:
+    def __init__(self, transaction_id, variable_id, lock_type):
     """a class of lock
     args:
         lock_type: read, write
     """
-    def __init__(self, lock_id, transaction_id, variable_id, lock_type):
         self.transaction_id = transaction_id
         self.variable_id = variable_id
         self.lock_type = lock_type
