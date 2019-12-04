@@ -66,7 +66,7 @@ class Graph:
 
     def addEdge(self, vId, uId):
         """
-        Add vertex (id = adjId) to vertex (id = vId)'s 
+        Add vertex (id = uId) to vertex (id = vId)'s 
         adjacent list
         """
         v = self.getVertex(vId)
