@@ -117,22 +117,14 @@ class Site:
             print("fail")
             return False
 
-        for var in self.variable_list.values():
-            if var.is_recovered == True:
-
-        elif self.variable_list[variable_id].is_recovered == True:
-            if variable_id%2 == 0:
-                return False, 0
-            else:
-                if is_commited:
-                    return True, self.variable_list[i].commited_value
-                else:
-                    return True, self.variable_list[i].value
-        else:
+        for vid, var in self.variable_list.items():
+            if var.is_recovered == True and vid%2 == 0:
+                continue
             if is_commited:
-                return True, self.variable_list[i].commited_value
+                print("x{}: {}".format(vid, var.commited_value), end=" ")
             else:
-                return True, self.variable_list[i].value
+                print("x{}: {}".format(vid, var.value), end=" ")
+        print("")
 
 
     
