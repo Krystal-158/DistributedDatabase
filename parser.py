@@ -50,10 +50,10 @@ def parse_line(line, trans_manager):
             trans_manager.insert_site_to_trans_map(trans_num, v_ind)
             trans_manager.write_op(transaction_id, variable_id, variable_val)
         else:
-            print('Wrong file format')
-            print('trans num', transaction_id)
+            print('Error: ', line)
+            print('transaction_id', transaction_id)
             print('trans_manager.transaction_map', trans_manager.transaction_map)
-            print('end of Wrong format')
+            print('end')
     elif line.startswith('R('):
         content = extractContent(line)
         transaction_id = extractNum(content[0])
@@ -62,10 +62,10 @@ def parse_line(line, trans_manager):
             trans_manager.insert_site_to_trans_map(transaction_id, variable_id)
             trans_manager.read_op(transaction_id, variable_id)
         else:
-            print('Wrong file format')
-            print('trans num', trans_num)
+            print('Error: ', line)
+            print('transaction_id', transaction_id)
             print('trans_manager.transaction_map', trans_manager.transaction_map)
-            print('end of Wrong format')
+            print('end')
     elif line.startswith('end('):
         content = extractContent(line)
         transaction_id = extractNum(content[0])
