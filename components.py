@@ -55,7 +55,7 @@ class Site:
                 return False
             else:
                 for l in self.lock_table[vid]:
-                    if (l.transaction_id == lock.transaction_id)
+                    if l.transaction_id == lock.transaction_id:
                         print("Lock existed.")
                         return True
                 self.lock_table[vid].append(lock)
