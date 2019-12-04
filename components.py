@@ -22,9 +22,10 @@ class Site:
 
     def ApplyLock(self, lock):
         """Apply a lock on the variable.
-        1. check if there is write lock on variable. if so, lock apply fails.
-        2. check if there is read lock on variable. if so, applying read lock continues, applying write lock fails.
-        2.1 apply read lock: check if transaction already holds read lock on this variable, if not, apply one.
+        1. check if there is write lock on variable. if so, lock apply fails unless two lock belongs to one transaction.
+        2. check if there is read lock on variable. if so:
+        2.1 apply write lock: if two lock belongs to one transaction, upgrade read lock. otherwise fails.
+        2.2 apply read lock: check if transaction already holds read lock on this variable, if not, apply one.
         3. no lock on the variable: apply the lock on the variable
         """
         if lock.variable_id not in self.variable_list:
@@ -91,7 +92,7 @@ class Site:
         undo all uncommited operations and label variable as recovered.
         """
         self.status = "available"
-        for v in self.variable_list:
+        for v in self.variable_list.values():
             v.value = v.commited_value
             v.is_recovered = True
     
@@ -155,24 +156,22 @@ class Site:
                     return True
 
                 elif o_type == "write":
-                # set is_recovered to False
                     self.variable_list[v_id].set_value(operation.val)
-                    self.variable_list[v_id].is_recovered == False
-                    print("commit done. T{} write value {} to RECOVERED variable {} on site{}.".format(
+                    print("Done. T{} write value {} to variable {} on site{}.".format(
                     transaction.txID, self.variable_list[v_id].commited_value, v_id, self.site_id))
                     return True
                 else:
-                    print("commit failed: wrong operation type: {}".format(o_type))
+                    print("Failed: wrong operation type: {}".format(o_type))
                     return False
 
             elif self.status == "available":
                 if o_type == "read":
-                    print("commit done. T{} read variable {} on site{} returns {}".format(
+                    print("T{} read variable {} on site{} returns {}".format(
                     transaction.txID, v_id, self.site_id, self.variable_list[v_id].value))
                     return True
                 elif o_type == "write":
                     self.variable_list[v_id].set_value(operation.val)
-                    print("commit done. T{} write value {} to variable {} on site{}".format(
+                    print("Done. T{} write value {} to variable {} on site{}".format(
                     transaction.txID, self.variable_list[v_id].commited_value, v_id, self.site_id))
                     return True
                 else:
@@ -180,7 +179,7 @@ class Site:
                     return False
 
             else:
-                print("commit failed: wrong site status: {}".format(self.site_status))
+                print("Failed: wrong site status: {}".format(self.site_status))
                 return False
         else:
             print("Wrong transaction type: {}".format(t_type))
@@ -196,39 +195,15 @@ class Site:
         if self.status == "fail":
             print("Commit failed: Site {} is a failed site".format(self.site_id))
             return False
-        if t_type == "RO":
-            if o_type == "read":
-                if self.variable_list[v_id].is_recovered == True and v_id%2 == 0:
-                # cannot read duplicated(even-index) variables
-                    print("commit failed: read duplicated variable {} on recovery site {}".format(v_id, self.site_id))
-                    return False
-                print("commit done. T{} read last COMMITED variable {} on site{} returns {}".format(
-                    transaction.txID, v_id, self.site_id, self.variable_list[v_id].commited_value))
-                return True
-            else:
-                print("commit failed: write operation exists in RO transaction.")
-                return False
+        if o_type == "read" or t_type == "RO":
+            return True
         elif t_type == "RW":
             if self.variable_list[v_id].is_recovered == True:
-                if o_type == "read":
-                # cannot read duplicated(even-index) variables
-                    if v_id%2 == 0:
-                        print("commit failed. read duplicated variable {} on recovery site {}".format(v_id, self.site_id))
-                        return False
-                    # if (self.variable_list[vid].lock_status == "write" and 
-                    #     self.lock_table[v_id][0].transaction_id != transaction.transaction_id):
-                    # ################ something could goes wrong
-                    #     print("commit failed. read a variable with write lock on.")
-                    #     return False
-                    print("commit done. T{} read variable {} on site{} returns {}".format(
-                    transaction.txID, v_id, self.site_id, self.variable_list[v_id].value))
-                    return True
-
-                elif o_type == "write":
+                if o_type == "write":
                 # set is_recovered to False
                     self.variable_list[v_id].commit()
                     self.variable_list[v_id].is_recovered == False
-                    print("commit done. T{} write value {} to RECOVERED variable {} on site{}.".format(
+                    print("commit done. T{} commit value {} to RECOVERED variable {} on site{}.".format(
                     transaction.txID, self.variable_list[v_id].commited_value, v_id, self.site_id))
                     return True
                 else:
@@ -236,11 +211,7 @@ class Site:
                     return False
 
             elif self.status == "available":
-                if o_type == "read":
-                    print("commit done. T{} read variable {} on site{} returns {}".format(
-                    transaction.txID, v_id, self.site_id, self.variable_list[v_id].value))
-                    return True
-                elif o_type == "write":
+                if o_type == "write":
                     self.variable_list[v_id].commit()
                     print("commit done. T{} write value {} to variable {} on site{}".format(
                     transaction.txID, self.variable_list[v_id].commited_value, v_id, self.site_id))
