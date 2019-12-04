@@ -1,13 +1,13 @@
 class Site:
     """Site is a place saving a list of variables.
     args:
-        site_status: available, fail
+        status: available, fail
         lock_status: free, read, write
         lock_type: read, write
     """
     def __init__(self, site_id):
         self.site_id = site_id
-        self.status = "avaliable"  # site_status: available, fail
+        self.status = "avaliable"  # status: available, fail
         self.variable_list = dict()
         self.lock_table = dict()   # a dictionary of list of locks
 
@@ -22,28 +22,37 @@ class Site:
 
     def ApplyLock(self, lock):
         """Apply a lock on the variable.
-        1. check if there is write lock on variable. if so, lock apply fails unless two lock belongs to one transaction.
-        2. check if there is read lock on variable. if so:
-        2.1 apply write lock: if two lock belongs to one transaction, upgrade read lock. otherwise fails.
-        2.2 apply read lock: check if transaction already holds read lock on this variable, if not, apply one.
-        3. no lock on the variable: apply the lock on the variable
+        0. if site fail. return [False, 0]
+        1. if lock duplicated var on recovered site, return [false, 1]
+        2. check if varaible exists on the site, if not, return [false, 3]
+        3. check if there is lock conflicts, if so, return [false, 2]
+            1) check if there is write lock on variable. if so, lock apply fails unless two lock belongs to one transaction.
+            2) check if there is read lock on variable. if so:
+            2.1) apply write lock: if two lock belongs to one transaction, upgrade read lock. otherwise fails.
+            2.2) apply read lock: check if transaction already holds read lock on this variable, if not, apply one.
+            3) no lock on the variable: apply the lock on the variable, return [True, -1]
         """
+        if self.status == "fail":
+            return False, 0
+        if self.variable_list[lock.variable_id].is_recovered:
+            if lock.lock_type == "read" and lock.variable_id % 2 == 0:
+                return False, 1
         if lock.variable_id not in self.variable_list:
             print ("Cannot lock variable because variable {} does not exist on site {}! ".format(lock.variable, self.site_id))
-            return False
+            return False, 3
         
         vid = lock.variable_id
         if self.variable_list[vid] == "free":
             self.variable_list[vid].lock_status = lock.lock_type
             self.lock_table[vid].append(lock)
-            return True
+            return True, -1
         elif self.variable_list[vid].lock_status == "write":
             if lock.lock_type == "write" and self.lock_table[vid][0].transaction_id == lock.transaction_id:
                 print("Lock existed.")
-                return True
+                return True, -1
             else:
                 print ("Cannot lock variable because variable {} on site {} has write lock on! ".format(lock.variable, self.site_id))
-                return False
+                return False, 2
         elif self.variable_list[vid].lock_status == "read":
             if lock.lock_type == "write":
                 if len(self.lock_table[vid]) == 1 and self.lock_table[vid][0].transaction_id == lock.transaction_id:
@@ -51,16 +60,16 @@ class Site:
                     self.lock_table[vid].clear()
                     self.lock_table[vid].append(lock)
                     print("Upgrade read lock to write lock.")
-                    return True
+                    return True, -1
                 print ("Cannot apply WRITE lock because variable {} on site {} has read lock on! ".format(lock.variable, self.site_id))
-                return False
+                return False, 2
             else:
                 for l in self.lock_table[vid]:
                     if l.transaction_id == lock.transaction_id:
                         print("Lock existed.")
-                        return True
+                        return True, -1
                 self.lock_table[vid].append(lock)
-                return True
+                return True, -1
 
     def ReleaseLock(self, lock):
         """Release lock on variable.
@@ -95,6 +104,35 @@ class Site:
         for v in self.variable_list.values():
             v.value = v.commited_value
             v.is_recovered = True
+
+    def dump_all(self, is_commited = False):
+        """return all the variables at this site in index order.
+        args:
+            is_commited: whether you want the lastest commited value.
+        """
+        print("site {} -".format(self.site_id), end = " ")
+        if self.status == "fail":
+            print("fail")
+            return False
+
+        for var in self.variable_list.values():
+            if var.is_recovered == True:
+
+        elif self.variable_list[variable_id].is_recovered == True:
+            if variable_id%2 == 0:
+                return False, 0
+            else:
+                if is_commited:
+                    return True, self.variable_list[i].commited_value
+                else:
+                    return True, self.variable_list[i].value
+        else:
+            if is_commited:
+                return True, self.variable_list[i].commited_value
+            else:
+                return True, self.variable_list[i].value
+
+
     
     def read(self, variable_id, is_commited = False):
         """return the value of the requested variable.
@@ -179,7 +217,7 @@ class Site:
                     return False
 
             else:
-                print("Failed: wrong site status: {}".format(self.site_status))
+                print("Failed: wrong site status: {}".format(self.status))
                 return False
         else:
             print("Wrong transaction type: {}".format(t_type))
@@ -221,7 +259,7 @@ class Site:
                     return False
 
             else:
-                print("commit failed: wrong site status: {}".format(self.site_status))
+                print("commit failed: wrong site status: {}".format(self.status))
                 return False
         else:
             print("Wrong transaction type: {}".format(t_type))
@@ -247,10 +285,14 @@ class Variable:
         self.commited_value = self.value
         
 class Lock:
+    """a class of lock
+    args:
+        lock_type: read, write
+    """
     def __init__(self, lock_id, transaction_id, variable_id, lock_type):
         self.transaction_id = transaction_id
         self.variable_id = variable_id
-        self.lock_type = lock_type  # lock_type: read, write
+        self.lock_type = lock_type
 
 class Operation:
     """
