@@ -42,7 +42,7 @@ class Site:
                 return False
             else:
                 for l in self.lock_table[vid]:
-                    if (l.transaction_id == lock.transaction_id)
+                    if (l.transaction_id == lock.transaction_id):
                         return True
                 self.lock_table[vid].append(lock)
                 return True
@@ -110,8 +110,9 @@ class Transaction:
     """
     definition of a transaction: a list of operations
     """
-    def __init__(self, txId):
+    def __init__(self, txId, txType):
         self.txId = txId
+        self.txType = txType
         self.ops = list()
 
     def addOp(self, op):
