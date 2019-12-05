@@ -160,3 +160,22 @@ class TransactionManager:
         """
         op = Operation(txId, opId, 'write', varId, value)
         self.transactions[txId].addOp(op)
+
+    def dumpOp(self, dumpsites = None):
+    	"""query for all the variable on all the site.
+    	OUTPUT: print all the variables on all sites in order of ascending index.
+    	"""
+    	if dumpsites:
+    		for sid in dumpsites.sort():
+    			self.sites[sid].dump_all()
+    	else:
+	    	for site in self.sites.values():
+	    		site.dump_all()
+	def failOp(self, siteId):
+		return
+
+	def recoverOp(self, recoverOp):
+		return
+
+
+
