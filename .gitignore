@@ -2,5 +2,6 @@
 *.pyc
 *.log
 
-# useless pycache folder
+# useless folders
 code/__pycache__/
+.vagrant/
