@@ -119,7 +119,7 @@ class TransactionManager:
                 tx = self.transactions[op.txId]
                 # try to get locks from all sites except for failed ones
                 for siteId in self.varSite[op.varId]:
-                    _, err = self.sites[siteId].ApplyLock(lock)
+                    err = self.sites[siteId].ApplyLock(lock)
                     if err == -1:
                      # successfully acquired a lock
                         op.locks.append(siteId)
@@ -167,7 +167,7 @@ class TransactionManager:
         lock = Lock(txId, varId, 'read')
         getLock = True
         for siteId in self.varSite[varId]:
-            _, err = self.sites[siteId].ApplyLock(lock)
+            err = self.sites[siteId].ApplyLock(lock)
             if err == -1:
                 # successfully acquired a lock
                 op.locks.append(siteId)
@@ -206,7 +206,7 @@ class TransactionManager:
         lock = Lock(txId, varId, 'write')
         getLock = True
         for siteId in self.varSite[varId]:
-            _, err = self.sites[siteId].ApplyLock(lock)
+            err = self.sites[siteId].ApplyLock(lock)
             if err == -1:
                 # successfully acquired a lock
                 op.locks.append(siteId)
