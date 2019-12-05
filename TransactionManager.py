@@ -1,7 +1,6 @@
 from graph import Graph
 from components import Site, Variable, Lock, Operation, Transaction, debugMode
 from datetime import datetime
-debugMode = True
 
 class TransactionManager:
     def __init__(self):
@@ -267,6 +266,10 @@ class TransactionManager:
     	site = self.sites[siteId]
     	if site.status == "fail":
         	site.recover()
+        	# if odd-index variable exists on site, they become free after recovery.
+        	if siteId%2 == 0:
+        		execWaitlist(siteId - 1)
+        		execWaitlist(siteId - 1 + 10)
         	print("site {} recovered.".format(siteId))
     	else:
         	print("site does not fail.")

@@ -1,7 +1,6 @@
 import re
 import TransactionManager
 from absl import flags, app
-debugMode = True
 
 FLAGS = flags.FLAGS
 debugMode = TransactionManager.debugMode
