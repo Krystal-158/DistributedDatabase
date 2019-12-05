@@ -10,7 +10,7 @@ class TransactionManager:
         self.varSite = dict() 
         # transactions (transaction index: transaction)
         self.transactions = dict()
-        # transaction - site map (txId: list of sites which it accessed)
+        # transaction - site map (txId: set of sites which it accessed)
         # add a site into tx's site list when the tx gets a lock on the site and execute an op
         # when a site fails, abort all txs which accessed it
         self.txSite = dict()
@@ -38,7 +38,7 @@ class TransactionManager:
         print('Start transaction ', txId)
         self.transactions[txId] = Transaction(txId, txType)
         self.graph.insertVertex(txId)
-        self.txSite[txId] = list()
+        self.txSite[txId] = set()
 
     def endTx(self, txId):
         """End a transaction: commit or abort
@@ -62,64 +62,29 @@ class TransactionManager:
                 # at least one operation hasn't got its lock
                 if op in self.waitlist:
                     commit = False
-        # all operations got their locks, try to execute ops not executed yet
-        if commit:
-            for op in tx.ops:
-                # not yet executed
-                if not op.exec:
-                    if op.varId % 2 == 0:
-                        if op.opType == 'read':
-                            # read from one site
-                            for siteId in range(1, 11):     
-                                if self.sites[siteId].execute(op, tx):
-                                    op.exec = True
-                                    break
-                        else:
-                            # write to all sites
-                            for siteId in range(1, 11):
-                                if not self.sites[siteId].execute(op, tx):
-                                    # if any site fails to write, commit is false
-                                    commit = False
-                            # after writing to all sites, set the op executed
-                            if commit:
-                                op.exec = True
-                    else:
-                        siteId = op.varId % 10 + 1
-                        if op.opType == 'read':
-                            if self.sites[siteId].execute(op, tx):
-                                op.exec = True 
-                        else:
-                            if not self.sites[siteId].execute(op, tx):
-                                commit = False
-                            else:
-                                op.exec = True 
+        # all operations not in the waitlist must have been executed
+        # # execute ops not in the waitlist and not executed
+        # if commit:
+        #     for op in tx.ops:  
+        #         if not op.exec:
+        #             for siteId in range(1, 11):
+        #                 self.sites[siteId].execute(op, tx)  
+                  
         # all ops executed, commit them all
         if commit:
             for op in tx.ops:
-                if op.varId % 2 == 0:
-                    if op.opType == 'read':
-                        for siteId in range(1, 11):
-                            if self.sites[siteId].commit(op, tx):
-                                break
-                    else: 
-                        for siteId in range(1, 11):
-                            if not self.sites[siteId].commit(op, tx):
-                                commit = False
-                                break
-                else:
-                    siteId = op.varId % 10 + 1
+                for siteId in range(1, 11):
                     if not self.sites[siteId].commit(op, tx):
                         commit = False
+                        break
+                if not commit:
+                    break
         # release all the locks
         for op in tx.ops:
-            lock = Lock(txId, varId, op.opType)
-            if op.varId % 2 == 0:
-                for siteId in range(1, 11):
-                    self.sites[siteId].ReleaseLock(lock)
-            else:
-                siteId = op.varId % 10 + 1
+            lock = Lock(txId, op.varId, op.opType)
+            for siteId in op.locks:
                 self.sites[siteId].ReleaseLock(lock)
-            self.reapplyLock(lock)                
+            self.execWaitlist(lock)                
         # delete the tx from self.transactions
         del self.transactions[txId]
         # delete the tx from self.txSite
@@ -128,27 +93,76 @@ class TransactionManager:
         self.graph.deleteVertex(txId)
         return commit
     
-    def reapplyLock(self, lock):
+    def execWaitlist(self, lock):
         """
         Apply a recently-released lock to the first operation needed it in the waitlist
         then execute the operation, if there's any
         """
         for op in self.waitlist:
             if op.varId == lock.variable_id:
-                if op.varId % 2 == 0:
+                # the first op in the waitlist waiting for the lock
+                requireLock = True # if failed to acquire a lock (site not fail and has the variable, i.e. lock is hold by other op)
+                tx = self.transactions[op.txId]
+                # try to get locks from all sites except for failed ones
+                for siteId in range(1, 11):
+                    getLock, err = self.sites[siteId].ApplyLock(lock)
+                    if not getLock and err != 1:
+                        # fail to get a lock and the site is available
+                        requireLock = False
+                        break
+                # if all need lock acquired, try to execute the op
+                if requireLock:
+                    if op.opType == 'read':
+                        for siteId in range(1, 11):
+                            if self.sites[siteId].execute(op, tx):
+                                op.exec = True
+                                break
+                    else:
+                        executed = True
+                        for siteId in range(1, 11):
+                            if not self.sites[siteId].execute(op, tx):
+                                executed = False
+                                break
+                        if executed:
+                            op.exec = True           
+                if op.exec:
+                    # op executed, remove it from the waitlist
+                    self.waitlist.remove(op)
+                    # add the site which this op accessed into its site map
+                    if op.varId % 2 == 0:
+                        for siteId in range(1, 11):
+                            self.txSite[op.txId].add(siteId)
+                    else:
+                        self.txSite[op.txId].add(op.varId % 10 + 1)
+                break
 
-                else:
 
-
-    def readOp(self, txId, opId, varId):
+    def readOp(self, txId, varId):
         """Read the value of a variable
         INPUT: txId(transaction id), varId(index of the variable which the operation wants to access)
         OUTPUT:
         If the op can require its lock immediately, execute it
         Else add the op into waitlist
         """
-        op = Operation(txId, opId, 'read', varId)
+        # use current time as operation id
+        op = Operation(txId, datetime.now(), 'read', varId)
+        tx = self.transactions[txId]
         self.transactions[txId].addOp(op)
+        # try to acquire lock
+        lock = Lock(txId, varId, 'read')
+        if varId % 2 == 0:
+            
+        else:
+            siteId = varId % 10 + 1
+            getLock, err = self.sites[siteId].ApplyLock(lock):
+            if getLock:
+                # lock acquired, try to execute it
+                if self.sites[siteId].execute(op, tx):
+                    op.exec = True
+            elif not getLock and err == 1:
+                # didn't get a lock due to site failure
+                op.exec = True
+        if not op.exec:
 
 
     def writeOp(self, txId, opId, varId, value):

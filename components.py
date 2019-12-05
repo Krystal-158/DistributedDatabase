@@ -161,7 +161,7 @@ class Site:
         t_type = transaction.txType
         if self.status == "fail":
             print("Failed: Site {} is a failed site".format(self.site_id))
-            return False, 0
+            return False
         if t_type == "RO":
             if o_type == "read":
                 if self.variable_list[v_id].is_recovered == True and v_id%2 == 0:
@@ -280,10 +280,10 @@ class Variable:
         
 class Lock:
     def __init__(self, transaction_id, variable_id, lock_type):
-    """a class of lock
-    args:
-        lock_type: read, write
-    """
+        """a class of lock
+        args:
+            lock_type: read, write
+        """
         self.transaction_id = transaction_id
         self.variable_id = variable_id
         self.lock_type = lock_type
@@ -301,7 +301,7 @@ class Operation:
         self.opId = opId
         self.txId = txId
         self.exec = False
-
+        self.locks = list() # locks acquired (represented by site index)
 
   
 class Transaction:
