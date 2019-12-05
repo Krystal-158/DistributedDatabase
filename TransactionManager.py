@@ -158,6 +158,11 @@ class TransactionManager:
                     # op executed, remove it from the waitlist
                     self.waitlist.remove(op)
                     # update the graph ------------------------------------------
+                    # delete related edge
+                    
+                    # see if the op's tx has
+                    for waitOp in self.transactions[op.txId]:
+
                     # add the site which this op accessed into its site map
                     for siteId in op.locks:
                         self.txSite[op.txId].add(siteId)
