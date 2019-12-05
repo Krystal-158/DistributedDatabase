@@ -194,12 +194,10 @@ class Site:
             if debugMode:
                 print("Failed: Site {} is a failed site".format(self.site_id))
             return False
-        
         if v_id not in self.variable_list:
             if debugMode:
                 print ("Failed: Variable {} does not exist on site {}! ".format(v_id, self.site_id))
             return False
-        
         if t_type == "RO":
             t_time = transaction.startTime
             if o_type == "read":
@@ -347,11 +345,11 @@ class Variable:
         return res
         
 class Lock:
-    """a class of lock
-    args:
-        lock_type: read, write
-    """
     def __init__(self, transaction_id, variable_id, lock_type):
+        """a class of lock
+        args:
+            lock_type: read, write
+        """
         self.transaction_id = transaction_id
         self.variable_id = variable_id
         self.lock_type = lock_type
@@ -369,7 +367,7 @@ class Operation:
         self.opId = datetime.now()
         self.txId = txId
         self.exec = False
-
+        self.locks = list() # locks acquired (represented by site index)
 
 class Transaction:
     """definition of a transaction: a list of operations
