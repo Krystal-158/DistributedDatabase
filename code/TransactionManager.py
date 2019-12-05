@@ -91,7 +91,8 @@ class TransactionManager:
         accessedVar = set()
         for op in tx.ops:
             lock = Lock(txId, op.varId, op.opType)
-            print("Operation is holding lock on ", op.locks)
+            if debugMode:
+                print("Operation is holding lock on ", op.locks)
             for siteId in op.locks:
                 self.sites[siteId].ReleaseLock(lock)
             accessedVar.add(op.varId)
