@@ -1,6 +1,7 @@
 from graph import Graph
 from components import Site, Variable, Lock, Operation, Transaction
 from datetime import datetime
+debugMode = True
 
 class TransactionManager:
     def __init__(self):
@@ -52,9 +53,13 @@ class TransactionManager:
         At the end, delete the transaction from self.transactions, self.graph, self.txSite
         Release all the locks and assign them to ops in the waitlist if possible
         """
+        if debugMode:
+            print("Try to end transaction ", txId)
         tx = self.transactions[txId]
         # check if the transaction aborted previously (due to site failure or deadlock)
         if tx.abort:
+            if debugMode:
+                print("Transaction aborted previously")
             commit = False
         else:
             commit = True
@@ -62,6 +67,8 @@ class TransactionManager:
                 # at least one operation hasn't got its lock
                 if op in self.waitlist:
                     commit = False
+                    if debugMode:
+                        print("Operation {} failed to get its lock".format(op.opId))
         # all operations not in the waitlist must have been executed
         # # execute ops not in the waitlist and not executed
         # if commit:
@@ -73,8 +80,10 @@ class TransactionManager:
         # all ops executed, commit them all
         if commit:
             for op in tx.ops:
-                for siteId in range(1, 11):
+                for siteId in op.locks:
                     if not self.sites[siteId].commit(op, tx):
+                        if debugMode:
+                            print("Site {} commit failed".format(siteId))
                         commit = False
                         break
                 if not commit:
@@ -84,13 +93,19 @@ class TransactionManager:
             lock = Lock(txId, op.varId, op.opType)
             for siteId in op.locks:
                 self.sites[siteId].ReleaseLock(lock)
-            self.execWaitlist(lock)             
+            self.execWaitlist(lock)              
+        self.locks = list()           
         # delete the tx from self.transactions
         del self.transactions[txId]
         # delete the tx from self.txSite
         self.txSite.pop(txId)
         # delete the tx from self.graph
         self.graph.deleteVertex(txId)
+        if debugMode:
+            if commit:
+                print("Committed transaction ", txId)
+            else:
+                print("Aborted transaction ", txId)
         return commit
     
     def execWaitlist(self, lock):
@@ -101,25 +116,30 @@ class TransactionManager:
         for op in self.waitlist:
             if op.varId == lock.variable_id:
                 # the first op in the waitlist waiting for the lock
-                requireLock = True # if failed to acquire a lock (site not fail and has the variable, i.e. lock is hold by other op)
+                getLock = True # if failed to acquire a lock (site not fail and has the variable, i.e. lock is hold by other op)
                 tx = self.transactions[op.txId]
                 # try to get locks from all sites except for failed ones
-                for siteId in range(1, 11):
-                    getLock, err = self.sites[siteId].ApplyLock(lock)
-                    if not getLock and err != 1:
-                        # fail to get a lock and the site is available
-                        requireLock = False
+                for siteId in self.varSite[op.varId]:
+                    _, err = self.sites[siteId].ApplyLock(lock)
+                    if err == -1:
+                     # successfully acquired a lock
+                        self.locks.append(siteId)
+                    elif err == 0:
+                        # there's other ops holding required lock
+                        getLock = False
                         break
                 # if all need lock acquired, try to execute the op
-                if requireLock:
+                if getLock and len(op.locks) > 0:
+                    if debugMode:
+                        print("All locks acquired, try to execute operation ", op.opId)
                     if op.opType == 'read':
-                        for siteId in range(1, 11):
+                        for siteId in op.locks:
                             if self.sites[siteId].execute(op, tx):
                                 op.exec = True
                                 break
                     else:
                         executed = True
-                        for siteId in range(1, 11):
+                        for siteId in op.locks:
                             if not self.sites[siteId].execute(op, tx):
                                 executed = False
                                 break
@@ -128,12 +148,10 @@ class TransactionManager:
                 if op.exec:
                     # op executed, remove it from the waitlist
                     self.waitlist.remove(op)
+                    # update the graph ------------------------------------------
                     # add the site which this op accessed into its site map
-                    if op.varId % 2 == 0:
-                        for siteId in range(1, 11):
-                            self.txSite[op.txId].add(siteId)
-                    else:
-                        self.txSite[op.txId].add(op.varId % 10 + 1)
+                    for siteId in op.locks:
+                        self.txSite[op.txId].add(tx)
                 break
 
     def readOp(self, txId, varId):
@@ -143,25 +161,37 @@ class TransactionManager:
         If the op can require its lock immediately, execute it
         Else add the op into waitlist
         """
-        # use current time as operation id
-        op = Operation(txId, datetime.now(), 'read', varId)
+        op = Operation(txId, 'read', varId)
         tx = self.transactions[txId]
-        self.transactions[txId].addOp(op)
+        tx.addOp(op)
         # try to acquire lock
         lock = Lock(txId, varId, 'read')
-        if varId % 2 == 0:
-            
-        else:
-            siteId = varId % 10 + 1
-            getLock, err = self.sites[siteId].ApplyLock(lock):
-            if getLock:
-                # lock acquired, try to execute it
+        getLock = True
+        for siteId in self.varSite:
+            _, err = self.sites[siteId].ApplyLock(lock)
+            if err == -1:
+                # successfully acquired a lock
+                self.locks.append(siteId)
+            elif err == 0:
+                # there's other ops holding required lock
+                getLock = False
+                break
+        if not getLock:
+            # there's other ops holding required lock, release those acquired
+            for siteId in self.locks:
+                self.sites[siteId].ReleaseLock(lock)
+        elif len(self.locks) > 0:
+            # lock acquired, try to execute it
+            for siteId in self.locks:
                 if self.sites[siteId].execute(op, tx):
                     op.exec = True
-            elif not getLock and err == 1:
-                # didn't get a lock due to site failure
-                op.exec = True
+                    self.txSite[op.txId].add(tx)
+                    break
+        # if the operation is not executed, add it to the waitlist
         if not op.exec:
+            self.waitlist.append(op)
+            # update the graph-------------------------------------------------------------
+
 
     def writeOp(self, txId, varId, value):
         """Write the value to a variable
@@ -171,7 +201,38 @@ class TransactionManager:
         Else add the op into waitlist
         """
         op = Operation(txId, 'write', varId, value)
-        self.transactions[txId].addOp(op)
+        tx = self.transactions[txId]
+        tx.addOp(op)
+        # try to acquire lock
+        lock = Lock(txId, varId, 'write')
+        getLock = True
+        for siteId in self.varSite:
+            _, err = self.sites[siteId].ApplyLock(lock)
+            if err == -1:
+                # successfully acquired a lock
+                self.locks.append(siteId)
+            elif err == 0:
+                # there's other ops holding required lock
+                getLock = False
+                break
+        if not getLock:
+            # there's other ops holding required lock, release those acquired
+            for siteId in self.locks:
+                self.sites[siteId].ReleaseLock(lock)
+        elif len(self.locks) > 0:
+            # lock acquired, try to execute it
+            executed = True
+            for siteId in self.locks:
+                if not self.sites[siteId].execute(op, tx):
+                    executed = False
+                    break
+            if executed:
+                op.exec = True
+                self.txSite[op.txId].add(tx)
+        # if the operation is not executed, add it to the waitlist
+        if not op.exec:
+            self.waitlist.append(op)
+            # update the graph
 
     def dumpOp(self, dumpsites = None):
     	"""query for all the variable on all the site.
