@@ -142,23 +142,19 @@ class Site:
             v.value = v.get_commited_value()
             v.is_recovered = True
 
-    def dump_all(self, is_commited = False):
+    def dump_all(self, is_commited = True):
         """return all the variables at this site in index order.
         args:
             is_commited: whether you want the lastest commited value.
         """
         print("site {} -".format(self.site_id), end = " ")
-        if self.status == "fail":
-            print("fail")
-            return False
-
         for vid, var in self.variable_list.items():
             if var.is_recovered == True and vid%2 == 0:
                 continue
             if is_commited:
-                print("x{}: {}".format(vid, var.get_commited_value()), end=" ")
+                print("x{}: {},".format(vid, var.get_commited_value()), end=" ")
             else:
-                print("x{}: {}".format(vid, var.value), end=" ")
+                print("x{}: {},".format(vid, var.value), end=" ")
         print("")
 
 
