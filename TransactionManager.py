@@ -94,7 +94,7 @@ class TransactionManager:
             for siteId in op.locks:
                 self.sites[siteId].ReleaseLock(lock)
             self.execWaitlist(lock)              
-        self.locks = list()           
+        op.locks = list()           
         # delete the tx from self.transactions
         del self.transactions[txId]
         # delete the tx from self.txSite
@@ -123,7 +123,7 @@ class TransactionManager:
                     _, err = self.sites[siteId].ApplyLock(lock)
                     if err == -1:
                      # successfully acquired a lock
-                        self.locks.append(siteId)
+                        op.locks.append(siteId)
                     elif err == 0:
                         # there's other ops holding required lock
                         getLock = False
@@ -151,7 +151,7 @@ class TransactionManager:
                     # update the graph ------------------------------------------
                     # add the site which this op accessed into its site map
                     for siteId in op.locks:
-                        self.txSite[op.txId].add(tx)
+                        self.txSite[op.txId].add(siteId)
                 break
 
     def readOp(self, txId, varId):
@@ -167,25 +167,25 @@ class TransactionManager:
         # try to acquire lock
         lock = Lock(txId, varId, 'read')
         getLock = True
-        for siteId in self.varSite:
+        for siteId in self.varSite[varId]:
             _, err = self.sites[siteId].ApplyLock(lock)
             if err == -1:
                 # successfully acquired a lock
-                self.locks.append(siteId)
+                op.locks.append(siteId)
             elif err == 0:
                 # there's other ops holding required lock
                 getLock = False
                 break
         if not getLock:
             # there's other ops holding required lock, release those acquired
-            for siteId in self.locks:
+            for siteId in op.locks:
                 self.sites[siteId].ReleaseLock(lock)
-        elif len(self.locks) > 0:
+        elif len(op.locks) > 0:
             # lock acquired, try to execute it
-            for siteId in self.locks:
+            for siteId in op.locks:
                 if self.sites[siteId].execute(op, tx):
                     op.exec = True
-                    self.txSite[op.txId].add(tx)
+                    self.txSite[op.txId].add(siteId)
                     break
         # if the operation is not executed, add it to the waitlist
         if not op.exec:
@@ -206,29 +206,30 @@ class TransactionManager:
         # try to acquire lock
         lock = Lock(txId, varId, 'write')
         getLock = True
-        for siteId in self.varSite:
+        for siteId in self.varSite[varId]:
             _, err = self.sites[siteId].ApplyLock(lock)
             if err == -1:
                 # successfully acquired a lock
-                self.locks.append(siteId)
+                op.locks.append(siteId)
             elif err == 0:
                 # there's other ops holding required lock
                 getLock = False
                 break
         if not getLock:
             # there's other ops holding required lock, release those acquired
-            for siteId in self.locks:
+            for siteId in op.locks:
                 self.sites[siteId].ReleaseLock(lock)
-        elif len(self.locks) > 0:
+        elif len(op.locks) > 0:
             # lock acquired, try to execute it
             executed = True
-            for siteId in self.locks:
+            for siteId in op.locks:
                 if not self.sites[siteId].execute(op, tx):
                     executed = False
                     break
             if executed:
                 op.exec = True
-                self.txSite[op.txId].add(tx)
+                for siteId in op.locks:
+                    self.txSite[op.txId].add(siteId)
         # if the operation is not executed, add it to the waitlist
         if not op.exec:
             self.waitlist.append(op)
