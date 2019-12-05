@@ -84,7 +84,7 @@ class TransactionManager:
             lock = Lock(txId, op.varId, op.opType)
             for siteId in op.locks:
                 self.sites[siteId].ReleaseLock(lock)
-            self.execWaitlist(lock)                
+            self.execWaitlist(lock)             
         # delete the tx from self.transactions
         del self.transactions[txId]
         # delete the tx from self.txSite
@@ -136,7 +136,6 @@ class TransactionManager:
                         self.txSite[op.txId].add(op.varId % 10 + 1)
                 break
 
-
     def readOp(self, txId, varId):
         """Read the value of a variable
         INPUT: txId(transaction id), varId(index of the variable which the operation wants to access)
@@ -164,13 +163,34 @@ class TransactionManager:
                 op.exec = True
         if not op.exec:
 
-
-    def writeOp(self, txId, opId, varId, value):
+    def writeOp(self, txId, varId, value):
         """Write the value to a variable
         INPUT: txId(transaction id), varId(index of variable which operation wants to access)
         OUTPUT:
         If the op can require its lock immediately, execute it
         Else add the op into waitlist
         """
-        op = Operation(txId, opId, 'write', varId, value)
+        op = Operation(txId, 'write', varId, value)
         self.transactions[txId].addOp(op)
+
+    def dumpOp(self, dumpsites = None):
+    	"""query for all the variable on all the site.
+    	OUTPUT: print all the variables on all sites in order of ascending index.
+    	"""
+    	if dumpsites:
+    		for sid in dumpsites.sort():
+    			self.sites[sid].dump_all()
+    	else:
+	    	for site in self.sites.values():
+	    		site.dump_all()
+
+    def failOp(self, siteId):
+    	return
+
+    def recoverOp(self, recoverOp):
+    	return
+
+
+
+
+
