@@ -98,7 +98,7 @@ class TransactionManager:
             self.execWaitlist(var)              
         op.locks = list()           
         # delete the tx from self.transactions
-        del self.transactions[txId]
+        self.transactions.pop(txId)
         # delete the tx from self.txSite
         self.txSite.pop(txId)
         # delete the tx from self.graph
@@ -157,12 +157,7 @@ class TransactionManager:
                 if op.exec:
                     # op executed, remove it from the waitlist
                     self.waitlist.remove(op)
-                    # update the graph ------------------------------------------
-                    # delete related edge
-                    
-                    # see if the op's tx has
-                    for waitOp in self.transactions[op.txId]:
-                        
+                    # no need to update the graph                        
                     # add the site which this op accessed into its site map
                     for siteId in op.locks:
                         self.txSite[op.txId].add(siteId)
@@ -212,6 +207,7 @@ class TransactionManager:
             # there's other ops holding required lock, release those acquired
             for siteId in op.locks:
                 self.sites[siteId].ReleaseLock(lock)
+            op.locks = list()
         elif len(op.locks) > 0:
             # lock acquired, try to execute it
             for siteId in op.locks:
@@ -221,9 +217,31 @@ class TransactionManager:
                     break
         # if the operation is not executed, add it to the waitlist
         if not op.exec:
-            self.waitlist.append(op)
+            self.waitlist.append(op) 
             # update the graph-------------------------------------------------------------
-
+            updated = False
+            for waitOp in reversed(self.waitlist):
+                # op.tx is waiting for waitOp.tx
+                if waitOp.varId == op.varId and waitOp.txId != op.txId:
+                    self.graph.addEdge(op.txId, waitOp.txId)
+                    updated = True
+                    break
+            if not updated:
+                # there's no operation from different tx waiting for the same lock
+                # the op is waiting for the lock's current holder(s)
+                for siteId in self.varSite[op.varId]:
+                    for lockHolder in self.sites[siteId].lock_table[op.varId]:
+                        self.graph.addEdge(op.txId, lockHolder.transaction_id)
+            # check deadlock
+            txCycle = self.graph.detectCycle()
+            if len(txCycle) > 0:
+                # find the youngest transaction
+                youngest = txCycle[0]
+                for t in txCycle:
+                    if t.startTime < youngest.startTime:
+                        youngest = t
+                # abort the youngest
+                self.abort(t)              
 
     def writeOp(self, txId, varId, value):
         """Write the value to a variable
@@ -282,8 +300,63 @@ class TransactionManager:
                     self.txSite[op.txId].add(siteId)
         # if the operation is not executed, add it to the waitlist
         if not op.exec:
-            self.waitlist.append(op)
-            # update the graph
+            self.waitlist.append(op) 
+            # update the graph-------------------------------------------------------------
+            updated = False
+            for waitOp in reversed(self.waitlist):
+                # op.tx is waiting for waitOp.tx
+                if waitOp.varId == op.varId and waitOp.txId != op.txId:
+                    self.graph.addEdge(op.txId, waitOp.txId)
+                    updated = True
+                    break
+            if not updated:
+                # there's no operation from different tx waiting for the same lock
+                # the op is waiting for the lock's current holder(s)
+                for siteId in self.varSite[op.varId]:
+                    for lockHolder in self.sites[siteId].lock_table[op.varId]:
+                        self.graph.addEdge(op.txId, lockHolder.transaction_id)
+            # check deadlock
+            txCycle = self.graph.detectCycle()
+            if len(txCycle) > 0:
+                # find the youngest transaction
+                youngest = txCycle[0]
+                for t in txCycle:
+                    if t.startTime < youngest.startTime:
+                        youngest = t
+                # abort the youngest
+                self.abort(t)        
+
+    def abort(self, tx):
+        """Abort the transaction
+        1. remove all tx's operations from waitlist
+        2. release all acquired locks
+        3. delete tx from transactions and graph
+        4. execute waitlist
+        """
+        # remove all tx's operations from waitlist
+        for op in self.waitlist:
+            if op.txId == tx.txId:
+                self.waitlist.remove(op)
+        # release all acquired locks
+        released = set()
+        for op in tx.ops:
+            lock = Lock(tx.txId, op.varId, op.opType)
+            for siteId in self.varSite[op.varId]:
+                if self.sites[siteId].ReleaseLock(lock) == 0:
+                    # sucessfully released a lock
+                    if debugMode:
+                        print("Variable {} at site {} released lock".format(op.varId, siteId))
+                    released.add(lock.variable_id)
+        # delete tx from transactions, txSite, and graph
+        self.transactions.pop(tx.txId)
+        self.txSite.pop(tx.txId)
+        self.graph.deleteVertex(tx.txId)
+        # execute waitlist
+        for varId in released:
+            self.execWaitlist(varId)
+        if debugMode:
+            print("Transaction {} aborted due to deadlock".format(tx.txId))
+
 
     def dumpOp(self, dumpsites = None):
     	"""query for all the variable on all the site.
@@ -319,8 +392,8 @@ class TransactionManager:
         	site.recover()
         	# if odd-index variable exists on site, they become free after recovery.
         	if siteId%2 == 0:
-        		execWaitlist(siteId - 1)
-        		execWaitlist(siteId - 1 + 10)
+        		self.execWaitlist(siteId - 1)
+        		self.execWaitlist(siteId - 1 + 10)
         	print("site {} recovered.".format(siteId))
     	else:
         	print("site does not fail.")
