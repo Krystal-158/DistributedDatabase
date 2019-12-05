@@ -350,14 +350,12 @@ class Variable:
                 res = v
         return res
         
-        
-        
 class Lock:
+    def __init__(self, transaction_id, variable_id, lock_type):
     """a class of lock
     args:
         lock_type: read, write
     """
-    def __init__(self, transaction_id, variable_id, lock_type):
         self.transaction_id = transaction_id
         self.variable_id = variable_id
         self.lock_type = lock_type
