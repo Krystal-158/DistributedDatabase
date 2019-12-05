@@ -134,6 +134,9 @@ class Site:
             if i == lock:
                 self.lock_table[vid].remove(lock)
                 res = 0
+            elif debugMode:
+                print("Lock i txId {} varId {} type {}".format(i.transaction_id, i.variable_id, i.lock_type))
+                print("Lock lock txId {} varId {} type {}".format(lock.transaction_id, lock.variable_id, lock.lock_type))
                 
         if  len(self.lock_table[vid]) == 0:
             (self.variable_list[vid]).lock_status = "free"
