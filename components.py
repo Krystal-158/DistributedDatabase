@@ -23,64 +23,83 @@ class Site:
                 self.variable_list[i] = Variable(i, 10*i, 10*i)
                 self.lock_table[i] = list()
 
-    def ApplyLock(self, lock):
+    def ApplyLock(self, lock, force=False):
         """Apply a lock on the variable.
-        0. if site fail. return [False, 1]
-        1. check if varaible exists on the site, if not, return [false, 2]
-        2. if lock duplicated var on recovered site, return [false, 3]
-        3. check if there is lock conflicts, if so, return [false, 0]
-            1) check if there is write lock on variable. if so, lock apply fails unless two lock belongs to one transaction.
-            2) check if there is read lock on variable. if so:
-            2.1) apply write lock: if two lock belongs to one transaction, upgrade read lock. otherwise fails.
-            2.2) apply read lock: check if transaction already holds read lock on this variable, if not, apply one.
-            3) no lock on the variable: apply the lock on the variable, return [True, -1]
+        Input:
+            force: True means if required lock already in hand, apply or upgrade directly.
+
+        Returns:
+            -1: apply lock successfully.
+            -2: is able to get all the lock, but not yet apply.
+            0: lock conflicts, cannot apply
+            1: site fail, cannot apply
+            2: var does not exist on this site, cannot apply
+            3: cannot apply read lock on duplicated var on recovered site.
         """
         if self.status == "fail":
-            return False, 1
+            # False
+            return 1
 
         vid = lock.variable_id
         if vid not in self.variable_list:
             if debugMode:
                 print ("Cannot lock variable because variable {} does not exist on site {}! ".format(lock.variable_id, self.site_id))
-            return False, 2
+            # False
+            return 2
 
         if self.variable_list[vid].is_recovered:
             if lock.lock_type == "read" and vid % 2 == 0:
-                return False, 3
+                # False
+                return 3
 
         if self.variable_list[vid].lock_status == "free":
             self.variable_list[vid].lock_status = lock.lock_type
             self.lock_table[vid].append(lock)
-            return True, -1
+            # True
+            return -1
         elif self.variable_list[vid].lock_status == "write":
             if lock.lock_type == "write" and (self.lock_table[vid])[0].transaction_id == lock.transaction_id:
                 if debugMode:
                     print("Lock existed.")
-                return True, -1
+                # True
+                if force:
+                    return -1
+                else:
+                    return -2
             else:
                 if debugMode:
                     print ("Cannot lock variable because variable {} on site {} has write lock on! ".format(lock.variable_id, self.site_id))
-                return False, 0
+                # False
+                return 0
         elif self.variable_list[vid].lock_status == "read":
             if lock.lock_type == "write":
                 if len(self.lock_table[vid]) == 1 and (self.lock_table[vid])[0].transaction_id == lock.transaction_id:
-                    self.variable_list[vid].lock_status = lock.lock_type
-                    self.lock_table[vid].clear()
-                    self.lock_table[vid].append(lock)
-                    if debugMode:
-                        print("Upgrade read lock to write lock.")
-                    return True, -1
+                    if force:
+                        self.variable_list[vid].lock_status = lock.lock_type
+                        self.lock_table[vid].clear()
+                        self.lock_table[vid].append(lock)
+                        if debugMode:
+                            print("Upgrade read lock to write lock.")
+                        return -1
+                    # True
+                    return -2
                 if debugMode:
                     print ("Cannot apply WRITE lock because variable {} on site {} has read lock on! ".format(lock.variable_id, self.site_id))
-                return False, 0
+                # False
+                return 0
             else:
                 for l in self.lock_table[vid]:
                     if l.transaction_id == lock.transaction_id:
                         if debugMode:
                             print("Lock existed.")
-                        return True, -1
+                        # True
+                        if force:
+                            return -1
+                        else:
+                            return -2
                 self.lock_table[vid].append(lock)
-                return True, -1
+                # True
+                return -1
         else:
             if debugMode:
                 print("Wrong lock status: ", self.variable_list[vid].lock_status)
