@@ -1,5 +1,5 @@
 # Pesky OS metadata files that we don't need
 *.pyc
 
-# Hidden Vagrant folder
+# useless pycache folder
 __pycache__/

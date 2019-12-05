@@ -88,11 +88,14 @@ class TransactionManager:
                 if not commit:
                     break
         # release all the locks
+        accessedVar = set()
         for op in tx.ops:
             lock = Lock(txId, op.varId, op.opType)
             for siteId in op.locks:
                 self.sites[siteId].ReleaseLock(lock)
-            self.execWaitlist(lock)              
+            accessedVar.add(op.varId)
+        for var in accessedVar:
+            self.execWaitlist(var)              
         op.locks = list()           
         # delete the tx from self.transactions
         del self.transactions[txId]
@@ -107,13 +110,14 @@ class TransactionManager:
                 print("Aborted transaction ", txId)
         return commit
     
-    def execWaitlist(self, lock):
+    def execWaitlist(self, varId):
         """
         Apply a recently-released lock to the first operation needed it in the waitlist
         then execute the operation, if there's any
         """
         for op in self.waitlist:
-            if op.varId == lock.variable_id:
+            if op.varId == varId:
+                lock = Lock(op.txId, op.varId, op.opType)
                 # the first op in the waitlist waiting for the lock
                 getLock = True # if failed to acquire a lock (site not fail and has the variable, i.e. lock is hold by other op)
                 tx = self.transactions[op.txId]
@@ -121,7 +125,13 @@ class TransactionManager:
                 for siteId in self.varSite[op.varId]:
                     err = self.sites[siteId].ApplyLock(lock)
                     if err == -1:
-                     # successfully acquired a lock
+                        # successfully acquired a lock
+                        op.locks.append(siteId)
+                    elif err == -2:
+                        # the current lock holder belongs to the same tx
+                        # but the current op is the first one in the wl which has the same varId
+                        # just force to acquire lock
+                        _ = self.sites[siteId].ApplyLock(lock, True)
                         op.locks.append(siteId)
                     elif err == 0:
                         # there's other ops holding required lock
@@ -148,6 +158,11 @@ class TransactionManager:
                     # op executed, remove it from the waitlist
                     self.waitlist.remove(op)
                     # update the graph ------------------------------------------
+                    # delete related edge
+                    
+                    # see if the op's tx has
+                    for waitOp in self.transactions[op.txId]:
+
                     # add the site which this op accessed into its site map
                     for siteId in op.locks:
                         self.txSite[op.txId].add(siteId)
@@ -171,6 +186,24 @@ class TransactionManager:
             if err == -1:
                 # successfully acquired a lock
                 op.locks.append(siteId)
+            elif err == -2:
+                # the current lock holder belongs to the same tx
+                # see if there's an op from different tx waiting for this lock
+                ddlk = False
+                for waitOp in self.waitlist:
+                    if waitOp.varId == op.varId and waitOp.txId != op.txId:
+                        ddlk = True
+                        break
+                    if ddlk:
+                        if debugMode:
+                            print("There is an op from different tx waiting for this lock, add op to waitlist")
+                        getLock = False
+                        break
+                if not ddlk:
+                    # there's no op from different tx waiting for this lock
+                    # just force to acquire the lock
+                    _ = self.sites[siteId].ApplyLock(lock, True)
+                    op.locks.append(siteId)
             elif err == 0:
                 # there's other ops holding required lock
                 getLock = False
@@ -210,6 +243,24 @@ class TransactionManager:
             if err == -1:
                 # successfully acquired a lock
                 op.locks.append(siteId)
+            elif err == -2:
+                # the current lock holder belongs to the same tx
+                # see if there's an op from different tx waiting for this lock
+                ddlk = False
+                for waitOp in self.waitlist:
+                    if waitOp.varId == op.varId and waitOp.txId != op.txId:
+                        ddlk = True
+                        break
+                    if ddlk:
+                        if debugMode:
+                            print("There is an op from different tx waiting for this lock, add op to waitlist")
+                        getLock = False
+                        break
+                if not ddlk:
+                    # there's no op from different tx waiting for this lock
+                    # just force to acquire the lock
+                    _ = self.sites[siteId].ApplyLock(lock, True)
+                    op.locks.append(siteId)
             elif err == 0:
                 # there's other ops holding required lock
                 getLock = False
