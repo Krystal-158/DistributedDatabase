@@ -112,13 +112,13 @@ class TransactionManager:
                         commit = False
         # release all the locks
         for op in tx.ops:
-            lock = Lock(txId, varId, op.opType)
+            lock = Lock(txId, op.varId, op.opType)
             if op.varId % 2 == 0:
                 for siteId in range(1, 11):
                     self.sites[siteId].ReleaseLock(lock)
             else:
-                siteId = op.varId % 10 + 1
-                self.sites[siteId].ReleaseLock(lock)
+            	siteId = op.varId % 10 + 1
+            	self.sites[siteId].ReleaseLock(lock)
             self.reapplyLock(lock)                
         # delete the tx from self.transactions
         del self.transactions[txId]
@@ -136,9 +136,9 @@ class TransactionManager:
         for op in self.waitlist:
             if op.varId == lock.variable_id:
                 if op.varId % 2 == 0:
-
+                	a=0
                 else:
-
+                	a=0
 
     def readOp(self, txId, opId, varId):
         """Read the value of a variable
@@ -150,15 +150,14 @@ class TransactionManager:
         op = Operation(txId, opId, 'read', varId)
         self.transactions[txId].addOp(op)
 
-
-    def writeOp(self, txId, opId, varId, value):
+    def writeOp(self, txId, varId, value):
         """Write the value to a variable
         INPUT: txId(transaction id), varId(index of variable which operation wants to access)
         OUTPUT:
         If the op can require its lock immediately, execute it
         Else add the op into waitlist
         """
-        op = Operation(txId, opId, 'write', varId, value)
+        op = Operation(txId, 'write', varId, value)
         self.transactions[txId].addOp(op)
 
     def dumpOp(self, dumpsites = None):
@@ -171,11 +170,14 @@ class TransactionManager:
     	else:
 	    	for site in self.sites.values():
 	    		site.dump_all()
-	def failOp(self, siteId):
-		return
 
-	def recoverOp(self, recoverOp):
-		return
+    def failOp(self, siteId):
+    	return
+
+    def recoverOp(self, recoverOp):
+    	return
+
+
 
 
 
