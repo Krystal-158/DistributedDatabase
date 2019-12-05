@@ -4,6 +4,7 @@ from absl import flags, app
 debugMode = True
 
 FLAGS = flags.FLAGS
+debugMode = TransactionManager.debugMode
 
 flags.DEFINE_string('filename', None, 'test file directory')
 
@@ -16,6 +17,8 @@ def extractNum(target):
     return list(map(int, temp))[0]
 
 def extractContent(line):
+    if debugMode:
+        print("start: ", line)
     regex = re.compile(r'[(](.*?)[)]', re.S)
     content = re.findall(regex, line)[0]
     content = content.split(",")

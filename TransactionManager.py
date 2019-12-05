@@ -1,5 +1,5 @@
 from graph import Graph
-from components import Site, Variable, Lock, Operation, Transaction
+from components import Site, Variable, Lock, Operation, Transaction, debugMode
 from datetime import datetime
 debugMode = True
 
@@ -11,8 +11,8 @@ class TransactionManager:
         self.varSite = dict() 
         # transactions (transaction index: transaction)
         self.transactions = dict()
-        # transaction - site map (txId: set of sites which it accessed)
-        # add a site into tx's site list when the tx gets a lock on the site and execute an op
+        # transaction - siteId map (txId: set of ID of sites which it accessed)
+        # add a siteId into tx's site list when the tx gets a lock on the site and execute an op
         # when a site fails, abort all txs which accessed it
         self.txSite = dict()
         # graph for deadlock check
@@ -243,14 +243,33 @@ class TransactionManager:
     		for sid in dumpsites.sort():
     			self.sites[sid].dump_all()
     	else:
-	    	for site in self.sites.values():
-	    		site.dump_all()
+        	for site in self.sites.values():
+        		site.dump_all()
 
     def failOp(self, siteId):
-    	return
+    	"""fail a site and abort all related transactions.
+        INPUT: site id.
+        """
+    	# all related transactions fail.
+    	for tx in self.transactions:
+        	if siteId in self.txSite[tx]:
+	            self.transactions[tx].abort = True
 
-    def recoverOp(self, recoverOp):
-    	return
+        # site fails
+    	site = self.sites[siteId]
+    	site.fail()
+    	print("site {} failed.".format(siteId))
+
+    def recoverOp(self, siteId):
+    	"""recover a site.
+        INPUT: site id.
+        """
+    	site = self.sites[siteId]
+    	if site.status == "fail":
+        	site.recover()
+        	print("site {} recovered.".format(siteId))
+    	else:
+        	print("site does not fail.")
 
 
 
