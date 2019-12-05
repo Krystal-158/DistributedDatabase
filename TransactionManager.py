@@ -123,9 +123,15 @@ class TransactionManager:
                 tx = self.transactions[op.txId]
                 # try to get locks from all sites except for failed ones
                 for siteId in self.varSite[op.varId]:
-                    _, err = self.sites[siteId].ApplyLock(lock)
+                    err = self.sites[siteId].ApplyLock(lock)
                     if err == -1:
-                     # successfully acquired a lock
+                        # successfully acquired a lock
+                        op.locks.append(siteId)
+                    elif err == -2:
+                        # the current lock holder belongs to the same tx
+                        # but the current op is the first one in the wl which has the same varId
+                        # just force to acquire lock
+                        _ = self.sites[siteId].ApplyLock(lock, True)
                         op.locks.append(siteId)
                     elif err == 0:
                         # there's other ops holding required lock
@@ -171,10 +177,28 @@ class TransactionManager:
         lock = Lock(txId, varId, 'read')
         getLock = True
         for siteId in self.varSite[varId]:
-            _, err = self.sites[siteId].ApplyLock(lock)
+            err = self.sites[siteId].ApplyLock(lock)
             if err == -1:
                 # successfully acquired a lock
                 op.locks.append(siteId)
+            elif err == -2:
+                # the current lock holder belongs to the same tx
+                # see if there's an op from different tx waiting for this lock
+                ddlk = False
+                for waitOp in self.waitlist:
+                    if waitOp.varId == op.varId and waitOp.txId != op.txId:
+                        ddlk = True
+                        break
+                    if ddlk:
+                        if debugMode:
+                            print("There is an op from different tx waiting for this lock, add op to waitlist")
+                        getLock = False
+                        break
+                if not ddlk:
+                    # there's no op from different tx waiting for this lock
+                    # just force to acquire the lock
+                    _ = self.sites[siteId].ApplyLock(lock, True)
+                    op.locks.append(siteId)
             elif err == 0:
                 # there's other ops holding required lock
                 getLock = False
@@ -214,6 +238,24 @@ class TransactionManager:
             if err == -1:
                 # successfully acquired a lock
                 op.locks.append(siteId)
+            elif err == -2:
+                # the current lock holder belongs to the same tx
+                # see if there's an op from different tx waiting for this lock
+                ddlk = False
+                for waitOp in self.waitlist:
+                    if waitOp.varId == op.varId and waitOp.txId != op.txId:
+                        ddlk = True
+                        break
+                    if ddlk:
+                        if debugMode:
+                            print("There is an op from different tx waiting for this lock, add op to waitlist")
+                        getLock = False
+                        break
+                if not ddlk:
+                    # there's no op from different tx waiting for this lock
+                    # just force to acquire the lock
+                    _ = self.sites[siteId].ApplyLock(lock, True)
+                    op.locks.append(siteId)
             elif err == 0:
                 # there's other ops holding required lock
                 getLock = False
