@@ -9,6 +9,11 @@ pre-install Vagrant and Orable VirtualBox on your workstation
 We use python3 environment.
 required python module and tools:
 ```bash
+# Build python3 environment
+conda create -name py3 python=3
+source activate py3
+
+# Load required modules
 pip install absl-py
 ```
 run experiment:
