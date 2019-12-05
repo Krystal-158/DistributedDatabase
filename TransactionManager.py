@@ -88,11 +88,14 @@ class TransactionManager:
                 if not commit:
                     break
         # release all the locks
+        accessedVar = set()
         for op in tx.ops:
             lock = Lock(txId, op.varId, op.opType)
             for siteId in op.locks:
                 self.sites[siteId].ReleaseLock(lock)
-            self.execWaitlist(lock)              
+            accessedVar.add(op.varId)
+        for var in accessedVar:
+            self.execWaitlist(var)              
         op.locks = list()           
         # delete the tx from self.transactions
         del self.transactions[txId]
@@ -107,13 +110,14 @@ class TransactionManager:
                 print("Aborted transaction ", txId)
         return commit
     
-    def execWaitlist(self, lock):
+    def execWaitlist(self, varId):
         """
         Apply a recently-released lock to the first operation needed it in the waitlist
         then execute the operation, if there's any
         """
         for op in self.waitlist:
-            if op.varId == lock.variable_id:
+            if op.varId == varId:
+                lock = Lock(op.txId, op.varId, op.opType)
                 # the first op in the waitlist waiting for the lock
                 getLock = True # if failed to acquire a lock (site not fail and has the variable, i.e. lock is hold by other op)
                 tx = self.transactions[op.txId]
