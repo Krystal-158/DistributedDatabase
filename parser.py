@@ -1,5 +1,10 @@
 import re
 import TransactionManager
+from absl import flags, app
+
+FLAGS = flags.FLAGS
+
+flags.DEFINE_string('filename', None, 'test file directory')
 
 def lines():
     temp = '- ' * 20
@@ -14,6 +19,7 @@ def extractContent(line):
     content = re.findall(regex, line)[0]
     content = content.split(",")
     content = [i.strip() for i in content]
+    content = [i for i in content if i]
     return content
 
 def parse_line(line, tx_manager): 
@@ -43,30 +49,26 @@ def parse_line(line, tx_manager):
         transaction_id = extractNum(content[0])
         variable_id = extractNum(content[1])
         variable_val = int(content[2])
-        if transaction_id in tx_manager.transaction_map:
-            tx_manager.insert_site_to_trans_map(trans_num, v_ind)
+        if transaction_id in tx_manager.transactions:
             tx_manager.writeOp(transaction_id, variable_id, variable_val)
         else:
-            print('Error: ', line)
-            print('transaction_id', transaction_id)
-            print('tx_manager.transaction_map', tx_manager.transaction_map)
-            print('end')
+            if debugMode:
+                print('Error: ', line)
+                print('T',transaction_id, " do not exists yet.")
     elif line.startswith('R('):
         content = extractContent(line)
         transaction_id = extractNum(content[0])
         variable_id = extractNum(content[1])
-        if transaction_id in tx_manager.transaction_map:
-            tx_manager.insert_site_to_trans_map(transaction_id, variable_id)
+        if transaction_id in tx_manager.transactions:
             tx_manager.readOp(transaction_id, variable_id)
         else:
-            print('Error: ', line)
-            print('transaction_id', transaction_id)
-            print('tx_manager.transaction_map', tx_manager.transaction_map)
-            print('end')
+            if debugMode:
+                print('Error: ', line)
+                print('T',transaction_id, " do not exists yet.")
     elif line.startswith('end('):
         content = extractContent(line)
         transaction_id = extractNum(content[0])
-        if transaction_id in tx_manager.transaction_map:
+        if transaction_id in tx_manager.transactions:
             tx_manager.endTx(transaction_id)
             
     elif line.startswith('recover('):
@@ -83,12 +85,13 @@ def parse_line(line, tx_manager):
             tx_manager.dumpOp()
         else:
             sites = []
+            print("content is: ", content)
             for s in content:
                 sites.append(int(s))
             tx_manager.dumpOp(sites)
 
 def parse_file(filename):
-    tx_manager = transactionmanager.TransactionManager()
+    tx_manager = TransactionManager.TransactionManager()
     lines()
     print('Start: ', filename)
     lines()
@@ -100,4 +103,15 @@ def parse_file(filename):
     lines()
     print('Finished.')
     lines()
+
+def main(args):
+    if FLAGS.filename:
+        parse_file(FLAGS.filename)
+    else:
+        exit()
+
+if __name__ == '__main__':
+    app.run(main)
+
+
             
