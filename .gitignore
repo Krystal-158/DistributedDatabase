@@ -1,5 +1,6 @@
 # Pesky OS metadata files that we don't need
 *.pyc
+*.log
 
 # useless pycache folder
-__pycache__/
+code/__pycache__/
