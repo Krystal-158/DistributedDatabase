@@ -34,12 +34,12 @@ def parse_line(line, trans_manager):
     if line.startswith('begin('):
         content = extractContent(line)
         transaction_id = extractNum(content[0])
-        trans_manager.start_transaction('RW', transaction_id)
+        trans_manager.startTx('RW', transaction_id)
         
     elif line.startswith('beginRO('):
         content = extractContent(line)
         transaction_id = extractNum(content[0])
-        trans_manager.start_transaction('RO', transaction_id)
+        trans_manager.startTx('RO', transaction_id)
         
     elif line.startswith('W('):
         content = extractContent(line)
@@ -48,7 +48,7 @@ def parse_line(line, trans_manager):
         variable_val = int(content[2])
         if transaction_id in trans_manager.transaction_map:
             trans_manager.insert_site_to_trans_map(trans_num, v_ind)
-            trans_manager.write_op(transaction_id, variable_id, variable_val)
+            trans_manager.writeOp(transaction_id, variable_id, variable_val)
         else:
             print('Error: ', line)
             print('transaction_id', transaction_id)
@@ -60,7 +60,7 @@ def parse_line(line, trans_manager):
         variable_id = extractNum(content[1])
         if transaction_id in trans_manager.transaction_map:
             trans_manager.insert_site_to_trans_map(transaction_id, variable_id)
-            trans_manager.read_op(transaction_id, variable_id)
+            trans_manager.readOp(transaction_id, variable_id)
         else:
             print('Error: ', line)
             print('transaction_id', transaction_id)
