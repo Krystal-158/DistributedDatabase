@@ -66,12 +66,19 @@ class Graph:
 
     def addEdge(self, vId, uId):
         """
-        Add vertex (id = uId) to vertex (id = vId)'s 
-        adjacent list
+        Add vertex uId to vertex vId's adjacent list
         """
         v = self.getVertex(vId)
         u = self.getVertex(uId)
         v.addAdj(u)
+
+    def deleteEdge(self, vId, uId):
+        """
+        Delete vertex uId from vertex vId's adjacent list
+        """
+        v = self.getVertex(vId)
+        u = self.getVertex(uId)
+        v.deleteAdj(u)
 
     def detectCycle(self):
         """
