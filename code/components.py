@@ -126,7 +126,7 @@ class Site:
         if lock.lock_type == "read" and  (self.variable_list[vid]).lock_status == "write":
             if lock.transaction_id == (self.lock_table[vid])[0].transaction_id:
                 if debugMode:
-                    print("lock released because write lock covered read lock. ")
+                    print("lock already released because write lock covered read lock. ")
                 return 3
             
         res = -1
@@ -144,6 +144,8 @@ class Site:
         else:
             if debugMode:
                 print("Did not find this lock.")
+                for i in self.lock_table[vid]:
+                    print("locklist: type {} tid {} vid {}".format(i.lock_type, i.transaction_id, i.variable_id))
             res = 4
         return res
 
@@ -372,6 +374,10 @@ class Lock:
         self.transaction_id = transaction_id
         self.variable_id = variable_id
         self.lock_type = lock_type
+
+    def __eq__(self,other):
+        res = (self.transaction_id==other.transaction_id ) and (self.variable_id==other.variable_id ) and (self.lock_type==other.lock_type )
+        return res
 
 class Operation:
     """definition of an operation
