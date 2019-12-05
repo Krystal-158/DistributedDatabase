@@ -5,12 +5,13 @@ If there's an edge pointing from T1 to T2, then T2 is
 in T1's adjacent list while T1 isn't in T2's.
 """
 from queue import Queue
+debugMode = True
 
 class Vertex:
     def __init__(self, vId):
         self.vId = vId
         self.visited = 0 # flag used in cycle detection
-        self.adj = set()
+        self.adj = set() # adjacent list
 
     def __repr__(self):
         return '{}'.format(self.vId)
@@ -106,7 +107,7 @@ class Graph:
         for u in v.adj:
             if u not in stack and u.visited == 0:
                 self.dfs(u, stack, cycle)
-            else:
+            elif u in stack:
                 index = stack.index(u)
                 for w in stack[index:]:
                     if w not in cycle:
@@ -135,5 +136,10 @@ if __name__ == '__main__':
     graph.addEdge(5, 6)
     graph.addEdge(6, 7)
     graph.addEdge(7, 5)
-    result = graph.detectCycle()
-    print(result)
+    print(graph.detectCycle())
+    graph.deleteVertex(4)
+    print(graph.detectCycle())
+    graph.deleteVertex(5)
+    print(graph.detectCycle())
+    graph.deleteVertex(1)
+    print(graph.detectCycle())

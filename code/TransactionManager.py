@@ -91,6 +91,7 @@ class TransactionManager:
         accessedVar = set()
         for op in tx.ops:
             lock = Lock(txId, op.varId, op.opType)
+            print("Operation is holding lock on ", op.locks)
             for siteId in op.locks:
                 self.sites[siteId].ReleaseLock(lock)
             accessedVar.add(op.varId)
@@ -236,12 +237,16 @@ class TransactionManager:
             txCycle = self.graph.detectCycle()
             if len(txCycle) > 0:
                 # find the youngest transaction
-                youngest = txCycle[0]
+                youngest = txCycle[0].vId
+                if debugMode:
+                    print("Deadlock detectd: ", txCycle)
                 for t in txCycle:
-                    if t.startTime < youngest.startTime:
-                        youngest = t
+                    if self.transactions[t.vId].startTime < self.transactions[youngest].startTime:
+                        youngest = t.vId
                 # abort the youngest
-                self.abort(t)              
+                self.abort(self.transactions[youngest]) 
+            elif debugMode:
+                print("No deadlock detected!")             
 
     def writeOp(self, txId, varId, value):
         """Write the value to a variable
@@ -318,13 +323,17 @@ class TransactionManager:
             # check deadlock
             txCycle = self.graph.detectCycle()
             if len(txCycle) > 0:
+                if debugMode:
+                    print("Deadlock detected: ", txCycle)
                 # find the youngest transaction
-                youngest = txCycle[0]
+                youngest = txCycle[0].vId
                 for t in txCycle:
-                    if t.startTime < youngest.startTime:
-                        youngest = t
+                    if self.transactions[t.vId].startTime < self.transactions[youngest].startTime:
+                        youngest = t.vId
                 # abort the youngest
-                self.abort(t)        
+                self.abort(self.transactions[youngest])        
+            elif debugMode:
+                print("No deadlock detected!")
 
     def abort(self, tx):
         """Abort the transaction
@@ -340,6 +349,8 @@ class TransactionManager:
         # release all acquired locks
         released = set()
         for op in tx.ops:
+            if debugMode:
+                print("Operation {} variable {} value {} is holding locks {}".format(op.opType, op.varId, op.val, op.locks))
             lock = Lock(tx.txId, op.varId, op.opType)
             for siteId in self.varSite[op.varId]:
                 if self.sites[siteId].ReleaseLock(lock) == 0:
