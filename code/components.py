@@ -193,14 +193,14 @@ class Site:
                 return False, 0
             else:
                 if is_commited:
-                    return True, self.variable_list[i].get_commited_value()
+                    return True, self.variable_list[variable_id].get_commited_value()
                 else:
-                    return True, self.variable_list[i].value
+                    return True, self.variable_list[variable_id].value
         else:
             if is_commited:
-                return True, self.variable_list[i].get_commited_value()
+                return True, self.variable_list[variable_id].get_commited_value()
             else:
-                return True, self.variable_list[i].value
+                return True, self.variable_list[variable_id].value
 
 
     def execute(self, operation, transaction):

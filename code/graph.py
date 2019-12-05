@@ -67,6 +67,7 @@ class Graph:
     def addEdge(self, vId, uId):
         """
         Add vertex uId to vertex vId's adjacent list
+        uId is the current lock holder, vId is the waiting tx
         """
         v = self.getVertex(vId)
         u = self.getVertex(uId)
