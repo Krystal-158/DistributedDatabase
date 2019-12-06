@@ -66,8 +66,6 @@ class TransactionManager:
                 # at least one operation hasn't got its lock
                 if op in self.waitlist:
                     commit = False
-                    if debugMode:
-                        print("Operation {} failed to get its lock".format(op.opId))
         # all operations not in the waitlist must have been executed
         # # execute ops not in the waitlist and not executed
         # if commit:
@@ -87,6 +85,14 @@ class TransactionManager:
                         break
                 if not commit:
                     break
+        else:
+            # if tx aborts, remove all the ops in the waitlist            
+            waitingOps = list()
+            for op in self.waitlist:
+                if op.txId == tx.txId:
+                    waitingOps.append(op)
+            for op in waitingOps:
+                self.waitlist.remove(op)
         # release all the locks
         accessedVar = set()
         for op in tx.ops:
@@ -142,7 +148,7 @@ class TransactionManager:
                 # if all need lock acquired, try to execute the op
                 if getLock and len(op.locks) > 0:
                     if debugMode:
-                        print("All locks acquired, try to execute operation ", op.opId)
+                        print("All locks acquired, try to execute operation {} variable {} value {}".format(op.opType, op.varId, op.val))
                     if op.opType == 'read':
                         for siteId in op.locks:
                             if self.sites[siteId].execute(op, tx):
@@ -236,13 +242,13 @@ class TransactionManager:
                         self.graph.addEdge(op.txId, lockHolder.transaction_id)
             # check deadlock
             txCycle = self.graph.detectCycle()
-            if len(txCycle) > 0:
+            if len(txCycle) > 1:
                 # find the youngest transaction
                 youngest = txCycle[0].vId
                 if debugMode:
                     print("Deadlock detectd: ", txCycle)
                 for t in txCycle:
-                    if self.transactions[t.vId].startTime < self.transactions[youngest].startTime:
+                    if self.transactions[t.vId].startTime > self.transactions[youngest].startTime:
                         youngest = t.vId
                 # abort the youngest
                 self.abort(self.transactions[youngest]) 
@@ -323,13 +329,13 @@ class TransactionManager:
                         self.graph.addEdge(op.txId, lockHolder.transaction_id)
             # check deadlock
             txCycle = self.graph.detectCycle()
-            if len(txCycle) > 0:
+            if len(txCycle) > 1:
                 if debugMode:
                     print("Deadlock detected: ", txCycle)
                 # find the youngest transaction
                 youngest = txCycle[0].vId
                 for t in txCycle:
-                    if self.transactions[t.vId].startTime < self.transactions[youngest].startTime:
+                    if self.transactions[t.vId].startTime > self.transactions[youngest].startTime:
                         youngest = t.vId
                 # abort the youngest
                 self.abort(self.transactions[youngest])        
@@ -371,44 +377,47 @@ class TransactionManager:
 
 
     def dumpOp(self, dumpsites = None):
-    	"""query for all the variable on all the site.
-    	OUTPUT: print all the variables on all sites in order of ascending index.
-    	"""
-    	if dumpsites:
-    		for sid in dumpsites.sort():
-    			self.sites[sid].dump_all()
-    	else:
-        	for site in self.sites.values():
-        		site.dump_all()
+        """query for all the variable on all the site.
+        OUTPUT: print all the variables on all sites in order of ascending index.
+        """
+        if dumpsites:
+            for sid in dumpsites.sort():
+                self.sites[sid].dump_all()
+        else:
+            for site in self.sites.values():
+                site.dump_all()
 
     def failOp(self, siteId):
-    	"""fail a site and abort all related transactions.
+        """fail a site and abort all related transactions.
         INPUT: site id.
         """
-    	# all related transactions fail.
-    	for tx in self.transactions:
-        	if siteId in self.txSite[tx]:
-	            self.transactions[tx].abort = True
-
+        # all related transactions fail.
+        for txId, tx in self.transactions.items():
+            if siteId in self.txSite[txId]:
+                tx.abort = True
+                # remove the site from op.locks
+                for op in tx.ops:
+                    if siteId in op.locks:
+                        op.locks.remove(siteId)
         # site fails
-    	site = self.sites[siteId]
-    	site.fail()
-    	print("site {} failed.".format(siteId))
+        site = self.sites[siteId]
+        site.fail()
+        print("site {} failed.".format(siteId))
 
     def recoverOp(self, siteId):
-    	"""recover a site.
+        """recover a site.
         INPUT: site id.
         """
-    	site = self.sites[siteId]
-    	if site.status == "fail":
-        	site.recover()
-        	# if odd-index variable exists on site, they become free after recovery.
-        	if siteId%2 == 0:
-        		self.execWaitlist(siteId - 1)
-        		self.execWaitlist(siteId - 1 + 10)
-        	print("site {} recovered.".format(siteId))
-    	else:
-        	print("site does not fail.")
+        site = self.sites[siteId]
+        if site.status == "fail":
+            site.recover()
+            # if odd-index variable exists on site, they become free after recovery.
+            if siteId%2 == 0:
+                self.execWaitlist(siteId - 1)
+                self.execWaitlist(siteId - 1 + 10)
+            print("site {} recovered.".format(siteId))
+        else:
+            print("site does not fail.")
 
 
 
