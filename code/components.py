@@ -147,8 +147,6 @@ class Site:
         else:
             if debugMode:
                 print("Did not find this lock.")
-                for i in self.lock_table[vid]:
-                    print("locklist: type {} tid {} vid {}".format(i.lock_type, i.transaction_id, i.variable_id))
             res = 4
         return res
 
@@ -173,8 +171,6 @@ class Site:
         """
         print("site {} -".format(self.site_id), end = " ")
         for vid, var in self.variable_list.items():
-            if var.is_recovered == True and vid%2 == 0:
-                continue
             if is_commited:
                 print("x{}: {},".format(vid, var.get_commited_value()), end=" ")
             else:
@@ -245,7 +241,6 @@ class Site:
                         if debugMode:
                             print("Failed. read duplicated variable {} on recovery site {}".format(v_id, self.site_id))
                         return False
-                    # ################ something could goes wrong
 
                     print("T{} read variable {} on site{} returns {}".format(
                     transaction.txId, v_id, self.site_id, self.variable_list[v_id].value))
@@ -337,7 +332,35 @@ class Site:
             if debugMode:
                 print("Wrong transaction type: {}".format(t_type))
             return False
-            
+
+    def undo(self, operation):
+        """undo an operation on this site.
+        """
+        v_id = operation.varId
+        o_type = operation.opType
+        if debugMode:
+            print("Undo on site {}".format(self.site_id), end=" ")
+
+        if self.status == "fail":
+            if debugMode:
+                print("failed: site failed")
+            return
+
+        if v_id not in self.variable_list:
+            if debugMode:
+                print ("passed: Variable {} does not exist on the site! ".format(v_id))
+            return
+
+        if o_type == "read":
+            if debugMode:
+                print ("passed: Read operation does not need undo! ")
+            return
+
+        self.variable_list[v_id].undo()
+        if debugMode:
+            print ("succeeded.")
+        return
+         
 
 class Variable:
     """a class for a variable.
@@ -366,7 +389,11 @@ class Variable:
         for t, v in self.commited_value.items():
             if t > tmax and t<=time:
                 res = v
+                tmax = t
         return res
+    
+    def undo(self):
+        self.value = self.get_commited_value()
         
 class Lock:
     def __init__(self, transaction_id, variable_id, lock_type):
