@@ -1,6 +1,7 @@
 import re
 import TransactionManager
 from absl import flags, app
+import time
 
 FLAGS = flags.FLAGS
 debugMode = TransactionManager.debugMode
@@ -41,11 +42,13 @@ def parse_line(line, tx_manager):
         content = extractContent(line)
         transaction_id = extractNum(content[0])
         tx_manager.startTx('RW', transaction_id)
+        time.sleep(.0001)
         
     elif line.startswith('beginRO('):
         content = extractContent(line)
         transaction_id = extractNum(content[0])
         tx_manager.startTx('RO', transaction_id)
+        time.sleep(.01)
         
     elif line.startswith('W('):
         content = extractContent(line)
@@ -77,11 +80,11 @@ def parse_line(line, tx_manager):
     elif line.startswith('recover('):
         content = extractContent(line)
         siteId = int(content[0])
-        tx_manager.recover_site(siteId)
+        tx_manager.recoverOp(siteId)
     elif line.startswith('fail('):
         content = extractContent(line)
         siteId = int(content[0])
-        tx_manager.fail_site(siteId)
+        tx_manager.failOp(siteId)
     elif line.startswith('dump('):
         content = extractContent(line)
         if len(content) == 0:

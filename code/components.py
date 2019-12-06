@@ -134,9 +134,6 @@ class Site:
             if i == lock:
                 self.lock_table[vid].remove(lock)
                 res = 0
-            elif debugMode:
-                print("Lock i txId {} varId {} type {}".format(i.transaction_id, i.variable_id, i.lock_type))
-                print("Lock lock txId {} varId {} type {}".format(lock.transaction_id, lock.variable_id, lock.lock_type))
                 
         if  len(self.lock_table[vid]) == 0:
             (self.variable_list[vid]).lock_status = "free"
@@ -147,8 +144,8 @@ class Site:
         else:
             if debugMode:
                 print("Did not find this lock.")
-                for i in self.lock_table[vid]:
-                    print("locklist: type {} tid {} vid {}".format(i.lock_type, i.transaction_id, i.variable_id))
+                # for i in self.lock_table[vid]:
+                #     print("locklist: type {} tid {} vid {}".format(i.lock_type, i.transaction_id, i.variable_id))
             res = 4
         return res
 
@@ -366,6 +363,7 @@ class Variable:
         for t, v in self.commited_value.items():
             if t > tmax and t<=time:
                 res = v
+                tmax = t
         return res
         
 class Lock:
