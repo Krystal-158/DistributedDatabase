@@ -86,6 +86,11 @@ class TransactionManager:
                 if not commit:
                     break
         else:
+            # if tx aborts, undo all the write operations
+            for op in tx.ops:
+                if op.opType == 'write' and op.exec:
+                    for siteId in op.locks:
+                        self.sites[siteId].undo(op)
             # if tx aborts, remove all the ops in the waitlist            
             waitingOps = list()
             for op in self.waitlist:
