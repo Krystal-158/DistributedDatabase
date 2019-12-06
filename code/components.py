@@ -1,5 +1,5 @@
 from datetime import datetime
-debugMode = True
+debugMode = False
 
 class Site:
     """Site is a place saving a list of variables.
@@ -134,9 +134,9 @@ class Site:
             if i == lock:
                 self.lock_table[vid].remove(lock)
                 res = 0
-                
+        
         if  len(self.lock_table[vid]) == 0:
-            (self.variable_list[vid]).lock_status = "free"
+            self.variable_list[vid].lock_status = "free"
 
         if res == 0:
             if debugMode:
@@ -145,12 +145,15 @@ class Site:
             if debugMode:
                 print("Did not find this lock.")
             res = 4
+
         return res
 
     def fail(self):
         self. status = "fail"
         for vlocklist in self.lock_table.values():
             vlocklist.clear()
+        for vid in self.variable_list:
+            self.variable_list[vid].lock_status = "free"
     
     def recover(self):
         """recover a site.
@@ -304,7 +307,8 @@ class Site:
                 # set is_recovered to False
                     self.variable_list[v_id].commit()
                     self.variable_list[v_id].is_recovered == False
-                    print("commit done. T{} commit value {} to RECOVERED variable {} on site{}.".format(
+                    if debugMode:
+                        print("commit done. T{} commit value {} to RECOVERED variable {} on site{}.".format(
                     transaction.txId, self.variable_list[v_id].get_commited_value(), v_id, self.site_id))
                     return True
                 else:
@@ -315,7 +319,8 @@ class Site:
             elif self.status == "available":
                 if o_type == "write":
                     self.variable_list[v_id].commit()
-                    print("commit done. T{} commit value {} to variable {} on site{}".format(
+                    if debugMode:
+                        print("commit done. T{} commit value {} to variable {} on site{}".format(
                     transaction.txId, self.variable_list[v_id].get_commited_value(), v_id, self.site_id))
                     return True
                 else:

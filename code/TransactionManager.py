@@ -35,7 +35,7 @@ class TransactionManager:
         INPUT: txType (transaction type: RW/RO), txId (transaction id)
         OUTPUT:
         """
-        print('Start transaction ', txId)
+        print('Start T{}'.format(txId))
         self.transactions[txId] = Transaction(txId, txType)
         self.graph.insertVertex(txId)
         self.txSite[txId] = set()
@@ -57,8 +57,7 @@ class TransactionManager:
         tx = self.transactions[txId]
         # check if the transaction aborted previously (due to site failure or deadlock)
         if tx.abort:
-            if debugMode:
-                print("Transaction aborted previously")
+            print("T{} aborted previously due to site failure or deadlock.".format(txId))
             commit = False
         else:
             commit = True
@@ -116,11 +115,10 @@ class TransactionManager:
         self.txSite.pop(txId)
         # delete the tx from self.graph
         self.graph.deleteVertex(txId)
-        if debugMode:
-            if commit:
-                print("Committed transaction ", txId)
-            else:
-                print("Aborted transaction ", txId)
+        if commit:
+            print("T{} Committed".format(txId))
+        else:
+            print("T{} Aborted".format(txId))
         return commit
     
     def execWaitlist(self, varId):
@@ -233,7 +231,7 @@ class TransactionManager:
                 # find the youngest transaction
                 youngest = txCycle[0].vId
                 if debugMode:
-                    print("Deadlock detectd: ", txCycle)
+                    print("Deadlock detected: ", txCycle)
                 for t in txCycle:
                     if self.transactions[t.vId].startTime > self.transactions[youngest].startTime:
                         youngest = t.vId
@@ -373,7 +371,7 @@ class TransactionManager:
         for varId in released:
             self.execWaitlist(varId)
         if debugMode:
-            print("Transaction {} aborted due to deadlock".format(tx.txId))
+            print("T{} aborted due to deadlock".format(tx.txId))
 
 
     def dumpOp(self, dumpsites = None):
