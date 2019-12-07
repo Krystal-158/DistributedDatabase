@@ -50,6 +50,8 @@ class Site:
         if self.variable_list[vid].is_recovered:
             if lock.lock_type == "read" and vid % 2 == 0:
                 # False
+                if debugMode:
+                    print("Recovered site hasn't been written yet.")
                 return 3
 
         if self.variable_list[vid].lock_status == "free":
@@ -212,7 +214,7 @@ class Site:
         t_type = transaction.txType
         if self.status == "fail":
             if debugMode:
-                print("Failed: Site {} is a failed site".format(self.site_id))
+                print("Failed: Site {} is a failed site.".format(self.site_id))
             return False
         if v_id not in self.variable_list:
             if debugMode:
@@ -224,9 +226,9 @@ class Site:
                 if self.variable_list[v_id].is_recovered == True and v_id%2 == 0:
                 # cannot read duplicated(even-index) variables
                     if debugMode:
-                        print("Failed: read duplicated variable {} on recovery site {}".format(v_id, self.site_id))
+                        print("Failed: read duplicated variable {} on recovery site {}.".format(v_id, self.site_id))
                     return False
-                print("T{} read last COMMITED variable {} on site{} returns {}".format(
+                print("T{} read last COMMITTED variable {} on site{} returns {}.".format(
                     transaction.txId, v_id, self.site_id, self.variable_list[v_id].get_commited_value(t_time)))
                 return True
             else:
@@ -242,7 +244,7 @@ class Site:
                             print("Failed. read duplicated variable {} on recovery site {}".format(v_id, self.site_id))
                         return False
 
-                    print("T{} read variable {} on site{} returns {}".format(
+                    print("T{} read variable {} on site{} returns {}.".format(
                     transaction.txId, v_id, self.site_id, self.variable_list[v_id].value))
                     return True
 
@@ -259,7 +261,7 @@ class Site:
 
             elif self.status == "available":
                 if o_type == "read":
-                    print("T{} read variable {} on site{} returns {}".format(
+                    print("T{} read variable {} on site{} returns {}.".format(
                     transaction.txId, v_id, self.site_id, self.variable_list[v_id].value))
                     return True
                 elif o_type == "write":
@@ -306,7 +308,7 @@ class Site:
                 if o_type == "write":
                 # set is_recovered to False
                     self.variable_list[v_id].commit()
-                    self.variable_list[v_id].is_recovered == False
+                    self.variable_list[v_id].is_recovered = False
                     if debugMode:
                         print("commit done. T{} commit value {} to RECOVERED variable {} on site{}.".format(
                     transaction.txId, self.variable_list[v_id].get_commited_value(), v_id, self.site_id))
@@ -444,6 +446,7 @@ class Transaction:
         self.abort = False
         self.ops = list()
         self.startTime = datetime.now()
+        self.accessedFailedSite = list()
 
     def addOp(self, op):
         if op not in self.ops:

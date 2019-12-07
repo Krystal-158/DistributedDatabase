@@ -57,7 +57,7 @@ class TransactionManager:
         tx = self.transactions[txId]
         # check if the transaction aborted previously (due to site failure or deadlock)
         if tx.abort:
-            print("T{} aborted previously due to site failure or deadlock.".format(txId))
+            print("T{} Aborted because it accessed site {} and it failed later.".format(txId, tx.accessedFailedSite))
             commit = False
         else:
             commit = True
@@ -65,13 +65,7 @@ class TransactionManager:
                 # at least one operation hasn't got its lock
                 if op in self.waitlist:
                     commit = False
-        # all operations not in the waitlist must have been executed
-        # # execute ops not in the waitlist and not executed
-        # if commit:
-        #     for op in tx.ops:  
-        #         if not op.exec:
-        #             for siteId in range(1, 11):
-        #                 self.sites[siteId].execute(op, tx)  
+                    print("T{} aborted because it failed to get all required locks to work.".format(txId))
                   
         # all ops executed, commit them all
         if commit:
@@ -97,6 +91,10 @@ class TransactionManager:
                     waitingOps.append(op)
             for op in waitingOps:
                 self.waitlist.remove(op)
+        if commit:
+            for op in tx.ops:
+                if op.opType == 'write':
+                    print("T{} wrote {} to variable {} to sites {}.".format(op.txId, op.val, op.varId, op.locks))
         # release all the locks
         accessedVar = set()
         for op in tx.ops:
@@ -107,6 +105,8 @@ class TransactionManager:
                 self.sites[siteId].ReleaseLock(lock)
             accessedVar.add(op.varId)
         for var in accessedVar:
+            if debugMode:
+                print("Finding ops waiting for variable ", var)
             self.execWaitlist(var)              
         op.locks = list()           
         # delete the tx from self.transactions
@@ -117,8 +117,8 @@ class TransactionManager:
         self.graph.deleteVertex(txId)
         if commit:
             print("T{} Committed".format(txId))
-        else:
-            print("T{} Aborted".format(txId))
+        # else:
+        #     print("T{} Aborted".format(txId))
         return commit
     
     def execWaitlist(self, varId):
@@ -266,7 +266,7 @@ class TransactionManager:
         # if the operation is not executed, add it to the waitlist
         if not op.exec:
             self.waitlist.append(op) 
-            # update the graph-------------------------------------------------------------
+            # update the graph
             updated = False
             for waitOp in reversed(self.waitlist):
                 # op.tx is waiting for waitOp.tx
@@ -370,8 +370,7 @@ class TransactionManager:
         # execute waitlist
         for varId in released:
             self.execWaitlist(varId)
-        if debugMode:
-            print("T{} aborted due to deadlock".format(tx.txId))
+        print("T{} aborted due to deadlock".format(tx.txId))
 
 
     def dumpOp(self, dumpsites = None):
@@ -393,6 +392,7 @@ class TransactionManager:
         for txId, tx in self.transactions.items():
             if siteId in self.txSite[txId]:
                 tx.abort = True
+                tx.accessedFailedSite.append(siteId)
                 # remove the site from op.locks
                 for op in tx.ops:
                     if siteId in op.locks:
@@ -400,7 +400,7 @@ class TransactionManager:
         # site fails
         site = self.sites[siteId]
         site.fail()
-        print("site {} failed.".format(siteId))
+        print("Site {} failed.".format(siteId))
 
     def recoverOp(self, siteId):
         """recover a site.
@@ -413,9 +413,9 @@ class TransactionManager:
             if siteId%2 == 0:
                 self.execWaitlist(siteId - 1)
                 self.execWaitlist(siteId - 1 + 10)
-            print("site {} recovered.".format(siteId))
+            print("Site {} recovered.".format(siteId))
         else:
-            print("site does not fail.")
+            print("Site does not fail.")
 
 
 
