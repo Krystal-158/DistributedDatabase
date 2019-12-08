@@ -498,7 +498,7 @@ class Operation:
         locks: a list of locks acquired by this operation
     """
     def __init__(self, txId, opType, varId, val=None):
-        self.opType = opType
+        self.opType = opType # 'read' or 'write'
         self.varId = varId
         self.val = val
         self.opId = datetime.now()

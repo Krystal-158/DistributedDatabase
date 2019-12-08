@@ -32,6 +32,12 @@ class TransactionManager:
         waitlist: list of operations which haven't got required lock yet
     """
     def __init__(self):
+        """Xiaowen Yan
+        DESCRIPTION:
+        INPUT:
+        OUTPUT:
+        SIDE EFFECTS:
+        """
         # 10 sites (site index: )
         self.sites = dict() 
         # varSite (variable index: list of site indexes where it's stored)
@@ -69,6 +75,12 @@ class TransactionManager:
         self.txSite[txId] = set()
 
     def endTx(self, txId):
+        """Xiaowen Yan
+        DESCRIPTION:
+        INPUT:
+        OUTPUT:
+        SIDE EFFECTS:
+        """
         """End a transaction: commit or abort
         If the transacton hasn't aborted yet, 
         check if all operations in the transaction got required locks.
@@ -154,6 +166,12 @@ class TransactionManager:
         return commit
     
     def execWaitlist(self, varId):
+        """Xiaowen Yan
+        DESCRIPTION:
+        INPUT:
+        OUTPUT:
+        SIDE EFFECTS:
+        """
         """
         Apply a recently-released lock to the first operation needed it in the waitlist
         then execute the operation, if there's any
@@ -228,6 +246,12 @@ class TransactionManager:
             self.execWaitlist(varId)
 
     def readOp(self, txId, varId):
+        """Xiaowen Yan
+        DESCRIPTION:
+        INPUT:
+        OUTPUT:
+        SIDE EFFECTS:
+        """
         """Read the value of a variable
         INPUT: txId(transaction id), varId(index of the variable which the operation wants to access)
         OUTPUT:
@@ -287,6 +311,12 @@ class TransactionManager:
                 print("No deadlock detected!")             
 
     def writeOp(self, txId, varId, value):
+        """Xiaowen Yan
+        DESCRIPTION:
+        INPUT:
+        OUTPUT:
+        SIDE EFFECTS:
+        """
         """Write the value to a variable
         INPUT: txId(transaction id), varId(index of variable which operation wants to access)
         OUTPUT:
@@ -342,6 +372,12 @@ class TransactionManager:
                 print("No deadlock detected!")
     
     def acquireLock(self, op, waitlist=False):
+        """Xiaowen Yan
+        DESCRIPTION:
+        INPUT:
+        OUTPUT:
+        SIDE EFFECTS:
+        """
         """Try to acquire all the locks
         INPUT:  op: operation acquiring lock, 
                 force: if the op comes from waitlist and current lock holder 
@@ -391,6 +427,12 @@ class TransactionManager:
         return getLock
 
     def abort(self, tx):
+        """Xiaowen Yan
+        DESCRIPTION:
+        INPUT:
+        OUTPUT:
+        SIDE EFFECTS:
+        """
         """Abort the transaction
         1. remove all tx's operations from waitlist
         2. release all acquired locks
