@@ -4,4 +4,7 @@
 
 # useless folders
 code/__pycache__/
-.vagrant/
+.vagrant
+code/.reprozip-trace/
+code/.reprozip-trace/
+.reprozip-trace/

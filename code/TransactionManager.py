@@ -1,8 +1,36 @@
+"""TransactionManager.py implement the transaction manager and functions to execute operations.
+Basic operation execution methods are:
+    startTx
+    endTx
+    readOp
+    writeOp
+    exetWaitlist
+    dumpOp
+    failOp
+    recoverOp
+
+Contribution of authors:
+    Yubing Bai: dumpOp(), failOp(), recoverOp()
+    Xiaowen Yan: all other parts
+
+The details of methods are specified below every definition of them.
+"""
 from graph import Graph
 from components import Site, Variable, Lock, Operation, Transaction, debugMode
 from datetime import datetime
 
 class TransactionManager:
+    """Transaction manager takes care of operation execution.
+    args:
+        sites: 10 sites (site index: )
+        varSite: varSite (variable index: list of site indexes where it's stored)
+        transactions: transactions (transaction index: transaction)
+        txSite: transaction - siteId map (txId: set of ID of sites which it accessed)
+                add a siteId into tx's site list when the tx gets a lock on the site and execute an op
+                when a site fails, abort all txs which accessed it
+        graph: graph for deadlock check
+        waitlist: list of operations which haven't got required lock yet
+    """
     def __init__(self):
         """Xiaowen Yan
         DESCRIPTION:
@@ -38,8 +66,8 @@ class TransactionManager:
 
     def startTx(self, txType, txId):
         """Start a transaction
-        INPUT: txType (transaction type: RW/RO), txId (transaction id)
-        OUTPUT:
+        INPUT: 
+            txType (transaction type: RW/RO), txId (transaction id)
         """
         print('Start T{}'.format(txId))
         self.transactions[txId] = Transaction(txId, txType)
@@ -54,15 +82,17 @@ class TransactionManager:
         SIDE EFFECTS:
         """
         """End a transaction: commit or abort
-        INPUT: txId(transaction id)
-        OUTPUT: True - commit, False - abort
-
         If the transacton hasn't aborted yet, 
         check if all operations in the transaction got required locks.
         If so, execute those ops which haven't been executed, then commit 
         else abort.
         At the end, delete the transaction from self.transactions, self.graph, self.txSite
         Release all the locks and assign them to ops in the waitlist if possible
+
+        INPUT: 
+            txId(transaction id)
+        OUTPUT: 
+            True - commit, False - abort
         """
         if debugMode:
             print("Try to end transaction ", txId)
