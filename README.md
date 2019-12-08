@@ -34,20 +34,21 @@ cd DistributedDatabase
 # Build and enter virtual machine
 vagrant up
 vagrant ssh
-cd /vagrant
+cd /vagrant/code
 ls
 
 # run experiment
-python3 parser.py --filename=test.py
+python3 parser.py --filename=test/test1.txt
 
 # trace experiment with reprozip
-reprozip trace python3 parser.py --filename=test.py
+reprozip trace python3 parser.py --filename=test/test1.txt
 reprozip trace --continue python3 parser.py --filename=<other test>
 
 # pack the experiment
 reprozip pack advDB
 
 # shut down virtual machine
+exit
 vagrant halt
 
 # delete virtual machine
