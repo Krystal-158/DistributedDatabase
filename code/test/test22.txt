@@ -1,0 +1,19 @@
+// Test 22
+// Xiaowen Yan
+// ops from T1 and T3 will be added to waitlist
+// When T2 commits, locks on x2 will be released and 
+// first T1's ops will be executed, then T3's
+
+begin(T1)
+begin(T2)
+R(T2, x2)
+R(T1, x2)
+W(T1, x2, 203)
+W(T1, x2, 204)
+W(T1, x2, 205)
+W(T1, x2, 206)
+begin(T3)
+W(T3, x2, 201)
+end(T2)
+end(T1)
+end(T3)
