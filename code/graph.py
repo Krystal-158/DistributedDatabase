@@ -1,8 +1,12 @@
-"""
-This file defines the graph used to detect deadlocks.
+"""graph.py defines the graph used to detect deadlocks.
 Each vertex in the graph represents a transaction.
 If there's an edge pointing from T1 to T2, then T2 is 
 in T1's adjacent list while T1 isn't in T2's.
+
+Contribution of authors:
+    Implemented by Xiaowen Yan
+
+The details of functions are specified below every definition of them.
 """
 from queue import Queue
 debugMode = True
