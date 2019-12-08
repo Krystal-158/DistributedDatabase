@@ -66,6 +66,7 @@ class TransactionManager:
                 if op in self.waitlist:
                     commit = False
                     print("T{} aborted because it failed to get all required locks to work.".format(txId))
+                    break
                   
         # all ops executed, commit them all
         if commit:
@@ -187,9 +188,9 @@ class TransactionManager:
                                         elif waitOp.txId == op.txId:
                                             print("Next op belongs to the same tx as current one, will continue to execute waitlist.")
                                     execAgain = True
-                            elif waitOp.opType == 'write' and waitOp.txId == op.txId:
+                            elif waitOp.txId == op.txId:
                                 if debugMode:
-                                    print("Current op and next op are both write and comes from the same tx, will continue to execute waitlist.")
+                                    print("Current op and next op come from the same tx, will continue to execute waitlist.")
                                 execAgain = True
                         break
                     break
@@ -333,9 +334,9 @@ class TransactionManager:
                     # the operation doesn't come from the waitlist
                     # see if there's an op from different tx waiting for this lock
                     for waitOp in self.waitlist:
-                        if waitOp.varId == op.varId and waitOp.txId != op.txId:
+                        #if waitOp.varId == op.varId and waitOp.txId != op.txId:
+                        if waitOp.varId == op.varId:
                             ddlk = True
-                            break
                         if ddlk:
                             if debugMode:
                                 print("There is an op from different tx waiting for this lock, add op to waitlist")
