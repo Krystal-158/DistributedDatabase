@@ -107,6 +107,7 @@ class TransactionManager:
         for var in accessedVar:
             if debugMode:
                 print("Finding ops waiting for variable ", var)
+                print("Start executing waitlist.")
             self.execWaitlist(var)              
         op.locks = list()           
         # delete the tx from self.transactions
@@ -157,6 +158,8 @@ class TransactionManager:
                 else:
                     # the first operation in the waitlist is from RO tx
                     # just execute it
+                    if debugMode:
+                        print("Operation belongs to tx {}, which is read-only, no need to acquire lock.".format(tx.txId))
                     for siteId in self.varSite[op.varId]:
                         if self.sites[siteId].execute(op, tx):
                             op.exec = True
@@ -164,6 +167,8 @@ class TransactionManager:
                     self.waitlist.remove(op)
                     # as the released lock is actually not assigned to a new op 
                     execAgain = True
+                    if debugMode:
+                        print("Current op belongs to read-only tx, will continue to execute waitlist.")
                     break
                 if op.exec:
                     # op executed, remove it from the waitlist
@@ -172,11 +177,21 @@ class TransactionManager:
                     # add the site which this op accessed into its site map
                     for siteId in op.locks:
                         self.txSite[op.txId].add(siteId)
-                    if op.opType == 'read':
-                        for waitOp in self.waitlist:
-                            if waitOp.varId == varId and (waitOp.Type == 'read' or waitOp.txId == op.txId):
+                    for waitOp in self.waitlist:
+                        if waitOp.varId == varId:
+                            if op.opType == 'read':
+                                if waitOp.opType == 'read' or waitOp.txId == op.txId:
+                                    if debugMode:
+                                        if waitOp.opType == 'read':
+                                            print("Current op and next op are both read, will continue to execute waitlist.")
+                                        elif waitOp.txId == op.txId:
+                                            print("Next op belongs to the same tx as current one, will continue to execute waitlist.")
+                                    execAgain = True
+                            elif waitOp.opType == 'write' and waitOp.txId == op.txId:
+                                if debugMode:
+                                    print("Current op and next op are both write and comes from the same tx, will continue to execute waitlist.")
                                 execAgain = True
-                                break
+                        break
                     break
         if execAgain:
             self.execWaitlist(varId)
@@ -305,7 +320,9 @@ class TransactionManager:
         lock = Lock(op.txId, op.varId, op.opType)
         getLock = True
         for siteId in self.varSite[op.varId]:
-            err = self.sites[siteId].ApplyLock(lock)
+            err = self.sites[siteId].ApplyLock(lock) # (lock, waitlist)???
+            if debugMode:
+                print(err)
             if err == -1:
                 # successfully acquired a lock
                 op.locks.append(siteId)
@@ -327,6 +344,8 @@ class TransactionManager:
                 if not ddlk:
                     # there's no op from different tx waiting for this lock
                     # just force to acquire the lock
+                    if debugMode:
+                        print("Force to acquire locks")
                     _ = self.sites[siteId].ApplyLock(lock, True)
                     op.locks.append(siteId)
             elif err == 0:
@@ -369,6 +388,8 @@ class TransactionManager:
         self.graph.deleteVertex(tx.txId)
         # execute waitlist
         for varId in released:
+            if debugMode:
+                print("Start executing waitlist.")
             self.execWaitlist(varId)
         print("T{} aborted due to deadlock".format(tx.txId))
 
@@ -411,6 +432,8 @@ class TransactionManager:
             site.recover()
             # if odd-index variable exists on site, they become free after recovery.
             if siteId%2 == 0:
+                if debugMode:
+                    print("Start executing waitlist.")
                 self.execWaitlist(siteId - 1)
                 self.execWaitlist(siteId - 1 + 10)
             print("Site {} recovered.".format(siteId))
