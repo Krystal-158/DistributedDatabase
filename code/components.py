@@ -422,13 +422,17 @@ class Lock:
         return res
 
 class Operation:
-    """definition of an operation
-    args:
-        opType: read, write
-        varId: variable_id
+    """Xiaowen Yan
+    DESCRIPTION: Definition of an operation, including 
+                its type, variable index, value(if any), operation index(the time it's created),
+                the tx index it belongs to, if it's executed, and the locks it acquired so far
+    INPUT: txId - the index of tx it belongs to, opType - 'read' or 'write'
+            varId - variable index, val - the value it wants to write, default is None
+    OUTPUT: 
+    SIDE EFFECTS:
     """
     def __init__(self, txId, opType, varId, val=None):
-        self.opType = opType
+        self.opType = opType # 'read' or 'write'
         self.varId = varId
         self.val = val
         self.opId = datetime.now()
@@ -437,6 +441,12 @@ class Operation:
         self.locks = list() # locks acquired (represented by site index)
 
 class Transaction:
+    """Xiaowen Yan
+    DESCRIPTION:
+    INPUT:
+    OUTPUT:
+    SIDE EFFECTS:
+    """
     """definition of a transaction: a list of operations
     args:
         txType:  RO, RW
