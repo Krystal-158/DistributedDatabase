@@ -60,7 +60,8 @@ class Site:
             # True
             return -1
         elif self.variable_list[vid].lock_status == "write":
-            if lock.lock_type == "write" and (self.lock_table[vid])[0].transaction_id == lock.transaction_id:
+            #if lock.lock_type == "write" and (self.lock_table[vid])[0].transaction_id == lock.transaction_id:
+            if (self.lock_table[vid])[0].transaction_id == lock.transaction_id:
                 if debugMode:
                     print("Lock existed.")
                 # True
