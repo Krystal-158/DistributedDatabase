@@ -1,5 +1,5 @@
-// Test 21
-// From a student in 2017
+// Test 22
+// Xiaowen Yan
 // T2 will try to promote its read lock to a write lock but can't
 // So there is a deadlock. T2 is younger so will abort.
 
