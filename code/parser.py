@@ -1,3 +1,11 @@
+"""parser.py is a parser that translate input text to executable info for transaction manager.
+
+Contribution of authors:
+    Implemented by Yubing Bai
+
+The details of functions are specified below every definition of them.
+"""
+
 import re
 import TransactionManager
 from absl import flags, app
@@ -7,16 +15,31 @@ FLAGS = flags.FLAGS
 debugMode = TransactionManager.debugMode
 
 flags.DEFINE_string('filename', None, 'test file directory')
+flags.mark_flag_as_required('filename')
 
 def lines():
+    """Print a line.
+    """
     temp = '- ' * 20
     print(temp)
 
 def extractNum(target):
+    """extract number from given string.
+    Input:
+        target: a given string
+    Output:
+        the number exists in the string.
+    """
     temp = re.findall(r'\d+', target)
     return list(map(int, temp))[0]
 
 def extractContent(line):
+    """extract items in the parenthesis in a string.
+    Input:
+        target: a given string
+    Output:
+        a list of strings in the parenthesis delimited by comma.
+    """
     if debugMode:
         print("start: ", line)
     regex = re.compile(r'[(](.*?)[)]', re.S)
@@ -27,16 +50,17 @@ def extractContent(line):
     return content
 
 def parse_line(line, tx_manager): 
-    """
-    begin(T1)
-    beginRO(T1)
-    W(T1, x10, 3)
-    R(T1, x3)
-    end(T1)
-    fail(3): site 3 fails
-    recover(3): site 3 recovers
-    dump(): dump all sites
-    dump(1, 3, 5): dump site 1, 3, and 5
+    """Parse the give line and invoke transaction manager to execute.
+    Parser is able to read the following lines:
+        begin(T1)
+        beginRO(T1)
+        W(T1, x10, 3)
+        R(T1, x3)
+        end(T1)
+        fail(3): site 3 fails
+        recover(3): site 3 recovers
+        dump(): dump all sites
+        dump(1, 3, 5): dump site 1, 3, and 5
     """   
     if line.startswith('begin('):
         content = extractContent(line)
@@ -97,6 +121,10 @@ def parse_line(line, tx_manager):
             tx_manager.dumpOp(sites)
 
 def parse_file(filename):
+    """read in given file and parse the whole file.
+    Input:
+        filename: the directory of test text file.
+    """
     tx_manager = TransactionManager.TransactionManager()
     lines()
     print('Start: ', filename)
