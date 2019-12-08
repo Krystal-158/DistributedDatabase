@@ -75,6 +75,8 @@ reprounzip info advDB.rpz
 reprounzip vagrant setup advDB.rpz <path>
 reprounzip vagrant run <path>
 reprounzip vagrant run <path> <run-id>
+# reproduce all the running with id from 0 to 10
+reprounzip vagrant run <path> 0-10
 
 # end experiment and delete unpacked files
 reprounzip vagrant destroy <path>
