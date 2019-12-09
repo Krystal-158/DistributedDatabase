@@ -291,10 +291,9 @@ class TransactionManager:
                     # abort the youngest
                     self.abort(self.transactions[youngest]) 
                     txCycle = self.graph.detectCycle()
-                elif debugMode:
-                    print("No deadlock detected!")
-                    break  
                 else:
+                    if debugMode:
+                        print("No deadlock detected!")
                     break           
 
     def writeOp(self, txId, varId, value):
@@ -340,18 +339,22 @@ class TransactionManager:
                         self.graph.addEdge(op.txId, lockHolder.transaction_id)
             # check deadlock
             txCycle = self.graph.detectCycle()
-            if len(txCycle) > 1:
-                if debugMode:
-                    print("Deadlock detected: ", txCycle)
-                # find the youngest transaction
-                youngest = txCycle[0].vId
-                for t in txCycle:
-                    if self.transactions[t.vId].startTime > self.transactions[youngest].startTime:
-                        youngest = t.vId
-                # abort the youngest
-                self.abort(self.transactions[youngest])        
-            elif debugMode:
-                print("No deadlock detected!")
+            while txCycle:
+                if len(txCycle) > 1:
+                    # find the youngest transaction
+                    youngest = txCycle[0].vId
+                    if debugMode:
+                        print("Deadlock detected: ", txCycle)
+                    for t in txCycle:
+                        if self.transactions[t.vId].startTime > self.transactions[youngest].startTime:
+                            youngest = t.vId
+                    # abort the youngest
+                    self.abort(self.transactions[youngest]) 
+                    txCycle = self.graph.detectCycle()
+                else:
+                    if debugMode:
+                        print("No deadlock detected!")
+                    break
     
     def acquireLock(self, op, waitlist=False):
         """Try to acquire all the locks
