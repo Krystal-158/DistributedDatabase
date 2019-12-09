@@ -32,12 +32,6 @@ class TransactionManager:
         waitlist: list of operations which haven't got required lock yet
     """
     def __init__(self):
-        """Xiaowen Yan
-        DESCRIPTION:
-        INPUT:
-        OUTPUT:
-        SIDE EFFECTS:
-        """
         # 10 sites (site index: )
         self.sites = dict() 
         # varSite (variable index: list of site indexes where it's stored)
@@ -75,12 +69,6 @@ class TransactionManager:
         self.txSite[txId] = set()
 
     def endTx(self, txId):
-        """Xiaowen Yan
-        DESCRIPTION:
-        INPUT:
-        OUTPUT:
-        SIDE EFFECTS:
-        """
         """End a transaction: commit or abort
         If the transacton hasn't aborted yet, 
         check if all operations in the transaction got required locks.
@@ -166,17 +154,16 @@ class TransactionManager:
         return commit
     
     def execWaitlist(self, varId):
-        """Xiaowen Yan
-        DESCRIPTION:
-        INPUT:
-        OUTPUT:
-        SIDE EFFECTS:
-        """
-        """
+        """Execute operations in the waitlist if possible
         Apply a recently-released lock to the first operation needed it in the waitlist
         then execute the operation, if there's any
-        If the first operation is from RO tx or the first op and the next one are both read,
-        we need to continue execWaitlist after successfully execute waitlist
+        There are three conditions that the next operation in the waitlist 
+        with the same varId can be possibly executed after the first one:
+            1. the first and next op are both read
+            2. the first and next op come from the same tx
+        
+        INPUT:
+            varId(index of the variable whose lock could be assigned to an op in the waitlist)
         """
         execAgain = False
         for op in self.waitlist:
@@ -246,17 +233,12 @@ class TransactionManager:
             self.execWaitlist(varId)
 
     def readOp(self, txId, varId):
-        """Xiaowen Yan
-        DESCRIPTION:
-        INPUT:
-        OUTPUT:
-        SIDE EFFECTS:
-        """
         """Read the value of a variable
-        INPUT: txId(transaction id), varId(index of the variable which the operation wants to access)
-        OUTPUT:
         If the op can require its lock immediately, execute it
         Else add the op into waitlist
+
+        INPUT: 
+            txId(transaction id), varId(index of the variable which the operation wants to access)
         """
         op = Operation(txId, 'read', varId)
         tx = self.transactions[txId]
@@ -297,31 +279,29 @@ class TransactionManager:
                         self.graph.addEdge(op.txId, lockHolder.transaction_id)
             # check deadlock
             txCycle = self.graph.detectCycle()
-            if len(txCycle) > 1:
-                # find the youngest transaction
-                youngest = txCycle[0].vId
-                if debugMode:
-                    print("Deadlock detected: ", txCycle)
-                for t in txCycle:
-                    if self.transactions[t.vId].startTime > self.transactions[youngest].startTime:
-                        youngest = t.vId
-                # abort the youngest
-                self.abort(self.transactions[youngest]) 
-            elif debugMode:
-                print("No deadlock detected!")             
+            while txCycle:
+                if len(txCycle) > 1:
+                    # find the youngest transaction
+                    youngest = txCycle[0].vId
+                    if debugMode:
+                        print("Deadlock detected: ", txCycle)
+                    for t in txCycle:
+                        if self.transactions[t.vId].startTime > self.transactions[youngest].startTime:
+                            youngest = t.vId
+                    # abort the youngest
+                    self.abort(self.transactions[youngest]) 
+                    txCycle = self.graph.detectCycle()
+                elif debugMode:
+                    print("No deadlock detected!")
+                    break             
 
     def writeOp(self, txId, varId, value):
-        """Xiaowen Yan
-        DESCRIPTION:
-        INPUT:
-        OUTPUT:
-        SIDE EFFECTS:
-        """
         """Write the value to a variable
-        INPUT: txId(transaction id), varId(index of variable which operation wants to access)
-        OUTPUT:
         If the op can require its lock immediately, execute it
         Else add the op into waitlist
+
+        INPUT: 
+            txId(transaction id), varId(index of variable which operation wants to access)
         """
         op = Operation(txId, 'write', varId, value)
         tx = self.transactions[txId]
@@ -372,17 +352,14 @@ class TransactionManager:
                 print("No deadlock detected!")
     
     def acquireLock(self, op, waitlist=False):
-        """Xiaowen Yan
-        DESCRIPTION:
-        INPUT:
-        OUTPUT:
-        SIDE EFFECTS:
-        """
         """Try to acquire all the locks
-        INPUT:  op: operation acquiring lock, 
-                force: if the op comes from waitlist and current lock holder 
-                belongs to the same tx, just force to acquire lock
-        OUTPUT: True(all locks required) or False(failed to acquire lock)
+
+        INPUT:  
+            op(operation acquiring lock), 
+            force(True - force to acquire lock, False)
+            waitlist(True - the op comes from the waitlist, default = False)
+        OUTPUT: 
+            True - all locks required, False - failed to acquire lock
         """
         lock = Lock(op.txId, op.varId, op.opType)
         getLock = True
@@ -427,18 +404,21 @@ class TransactionManager:
         return getLock
 
     def abort(self, tx):
-        """Xiaowen Yan
-        DESCRIPTION:
-        INPUT:
-        OUTPUT:
-        SIDE EFFECTS:
-        """
         """Abort the transaction
-        1. remove all tx's operations from waitlist
-        2. release all acquired locks
-        3. delete tx from transactions and graph
-        4. execute waitlist
+        1. undo all executed ops
+        2. remove all tx's operations from waitlist
+        3. release all acquired locks
+        4. delete tx from transactions and graph
+        5. execute waitlist
+
+        INPUT:
+            tx(transaction which should abort)
         """
+        # undo all tx's executed ops
+        for op in tx.ops:
+            if op.opType == 'write' and op.exec:
+                for siteId in op.locks:
+                    self.sites[siteId].undo(op)
         # remove all tx's operations from waitlist
         for op in self.waitlist:
             if op.txId == tx.txId:

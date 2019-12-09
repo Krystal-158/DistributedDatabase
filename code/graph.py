@@ -1,7 +1,4 @@
 """graph.py defines the graph used to detect deadlocks.
-Each vertex in the graph represents a transaction.
-If there's an edge pointing from T1 to T2, then T2 is 
-in T1's adjacent list while T1 isn't in T2's.
 
 Contribution of authors:
     Implemented by Xiaowen Yan
@@ -12,67 +9,62 @@ from queue import Queue
 debugMode = True
 
 class Vertex:
+    """ Vertex is a point in the graph
+    args:
+        vid: the index of the vertex
+        visited: if it's visited in a dfs
+        adj: set of its neighbours
+    """
     def __init__(self, vId):
-        """Xiaowen Yan
-        DESCRIPTION: Create a vertex object
-        INPUT: vId - vertex index
-        No output and side effect
-        """
         self.vId = vId
         self.visited = 0 # flag used in cycle detection
         self.adj = set() # adjacent list
 
     def addAdj(self, v):
-        """Xiaowen Yan
-        DESCRIPTION: Add Vertex v into current adjacent list
-        INPUT: v - the vertex which will be added to self.adj
-        No output and side effect
+        """Add Vertex v into current adjacent list
+
+        INPUT: 
+            v(the vertex which will be added to self.adj)
         """
         self.adj.add(v)
 
     def deleteAdj(self, v):
-        """Xiaowen Yan
-        DESCRIPTION: Remove a vertex from adjacent list
-        INPUT: v - the vertex which will be deleted from adjacent list
-        No output and side effect
+        """Remove a vertex from adjacent list
+
+        INPUT: 
+            v(the vertex which will be deleted from adjacent list)
         """
         self.adj.discard(v)
 
 
 class Graph:
+    """ Graph contains vertices and edges
+    Each vertex in the graph represents a transaction. If there's an edge 
+    pointing from T1 to T2, then T2 is in T1's adjacent list while T1 
+    isn't in T2's, which means T1 is waiting for T2.
+    args:
+        vertices: list of vertices in the graph
+    """
     def __init__(self):
-        """Xiaowen Yan
-        DESCRIPTION:
-        INPUT:
-        OUTPUT:
-        SIDE EFFECTS:
-        """
         self.vertices = list()
-        self.edges = list()
 
     def insertVertex(self, vId):
-        """Xiaowen Yan
-        DESCRIPTION:
+        """Add a vertex if it's not in the graph
+
         INPUT:
-        OUTPUT:
-        SIDE EFFECTS:
-        """
-        """
-        Add a vertex if it's not in the graph
+            vId(index of vertex to be inserted)
         """
         v = Vertex(vId)
         if v not in self.vertices:
             self.vertices.append(v)
     
     def getVertex(self, vId):
-        """Xiaowen Yan
-        DESCRIPTION:
+        """Find a particular vertex in the graph
+
         INPUT:
+            vId(index of vertex to be found)
         OUTPUT:
-        SIDE EFFECTS:
-        """
-        """
-        Find a particular vertex in the graph
+            v(vertex found), None is not found
         """
         for v in self.vertices:
             if v.vId == vId:
@@ -80,15 +72,10 @@ class Graph:
         return None
 
     def deleteVertex(self, vId):
-        """Xiaowen Yan
-        DESCRIPTION:
+        """Delete a vertex from the graph, thus delete all corresponding edges.
+
         INPUT:
-        OUTPUT:
-        SIDE EFFECTS:
-        """
-        """
-        Delete a vertex from the graph, thus delete all
-        corresponding edges.
+            vId(index of the vertex to be deleted)
         """
         v = self.getVertex(vId)
         if v:
@@ -100,45 +87,33 @@ class Graph:
             del v               
 
     def addEdge(self, vId, uId):
-        """Xiaowen Yan
-        DESCRIPTION:
+        """Add vertex uId to vertex vId's adjacent list
+        Then there's an edge pointing from v to u
+        
         INPUT:
-        OUTPUT:
-        SIDE EFFECTS:
-        """
-        """
-        Add vertex uId to vertex vId's adjacent list
-        uId is the current lock holder, vId is the waiting tx
+            uId(index of the current lock holder), vId(index of the waiting tx)
         """
         v = self.getVertex(vId)
         u = self.getVertex(uId)
         v.addAdj(u)
 
     def deleteEdge(self, vId, uId):
-        """Xiaowen Yan
-        DESCRIPTION:
+        """Delete vertex uId from vertex vId's adjacent list
+
         INPUT:
-        OUTPUT:
-        SIDE EFFECTS:
-        """
-        """
-        Delete vertex uId from vertex vId's adjacent list
+            vId(index of the vertex whose adjacent list to be updated)
+            uId(index of the vertex to be deleted from v's adj list)
         """
         v = self.getVertex(vId)
         u = self.getVertex(uId)
         v.deleteAdj(u)
 
     def detectCycle(self):
-        """Xiaowen Yan
-        DESCRIPTION:
-        INPUT:
+        """Detect if there's a cycle in the graph.
+        If so, return a list of vertices in the cycle, otherwise return an empty list
+
         OUTPUT:
-        SIDE EFFECTS:
-        """
-        """
-        Detect if there's a cycle in the graph.
-        If so, return a list of vertices in the cycle
-        Otherwise return an empty list
+            cycle(containing all vertices in a cycle)
         """
         cycle = list() # list of all vertices in any possible cycles
         stack = list()
@@ -150,15 +125,12 @@ class Graph:
         return cycle
 
     def dfs(self, v, stack, cycle):
-        """Xiaowen Yan
-        DESCRIPTION:
+        """Depth-first search a vertex
+        
         INPUT:
-        OUTPUT:
-        SIDE EFFECTS:
-        """
-        """
-        Depth-first search a vertex
-        Return all vertices in a cycle
+            v(the vertex to be searched)
+            stack(containing vertices visited so far)
+            cycle(containing all vertices in a cycle)
         """
         v.visited = 1
         stack.append(v)
