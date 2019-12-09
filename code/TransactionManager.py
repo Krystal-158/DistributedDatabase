@@ -293,7 +293,9 @@ class TransactionManager:
                     txCycle = self.graph.detectCycle()
                 elif debugMode:
                     print("No deadlock detected!")
-                    break             
+                    break  
+                else:
+                    break           
 
     def writeOp(self, txId, varId, value):
         """Write the value to a variable
