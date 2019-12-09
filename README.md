@@ -3,6 +3,10 @@
 using py3 enviroment
 pre-install Vagrant and Orable VirtualBox on your workstation
 
+## Design Doc
+
+[Link to the design doc](https://docs.google.com/document/d/1kboZxmIXHa89yTX3nveL8EagXX-DPL2FJMYS3M72sP8/edit?usp=sharing)
+
 
 # Usage
 ## Run experiment locally
